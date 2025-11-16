@@ -1,0 +1,58 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "prettier.useEditorConfig": false,
+
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // 🎨 Dark Theme Workbench Colors
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#1e1e2e",
+    "activityBar.foreground": "#f8f8f2",
+    "activityBarBadge.background": "#ff79c6",
+    "activityBarBadge.foreground": "#ffffff",
+
+    "sideBar.background": "#252537",
+    "sideBar.foreground": "#cfcfcf",
+    "sideBarSectionHeader.background": "#1e1e2e",
+    "sideBarSectionHeader.foreground": "#f8f8f2",
+
+    "editor.background": "#1e1e2e",
+    "editor.foreground": "#f8f8f2",
+    "editorLineNumber.foreground": "#5b5b76",
+    "editorLineNumber.activeForeground": "#ff79c6",
+    "editorCursor.foreground": "#50fa7b",
+    "editor.selectionBackground": "#44475a",
+
+    "statusBar.background": "#282a36",
+    "statusBar.foreground": "#f8f8f2",
+
+    "titleBar.activeBackground": "#1e1e2e",
+    "titleBar.activeForeground": "#f8f8f2",
+    "titleBar.inactiveBackground": "#252537",
+    "titleBar.inactiveForeground": "#a9a9b3",
+
+    "tab.activeBackground": "#282a36",
+    "tab.activeForeground": "#f8f8f2",
+    "tab.inactiveBackground": "#1e1e2e",
+    "tab.inactiveForeground": "#8a8a94",
+
+    "terminal.background": "#1e1e2e",
+    "terminal.foreground": "#f8f8f2",
+    "terminalCursor.foreground": "#50fa7b"
+  }
+}
