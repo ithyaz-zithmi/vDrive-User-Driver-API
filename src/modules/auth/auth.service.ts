@@ -13,32 +13,142 @@ export const AuthService = {
   hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
   },
-  validatePassword(password: string, hashed_password: string): Promise<boolean> {
-    return bcrypt.compare(password, hashed_password);
+
+  genNumericOTP(length: number): string {
+    let otp = '';
+    for (let i = 0; i < length; i++) {
+      otp += Math.floor(Math.random() * 10);
+    }
+    return otp;
   },
-  checkUserName(user_name: string): string {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const phoneRegex = /^\d{7,15}$/;
+  async hashValue(value: string): Promise<string> {
+    const saltRounds = 10;
+    return await bcrypt.hash(value, saltRounds);
+  },
 
-    if (emailRegex.test(user_name)) {
-      return 'Email';
-    } else if (phoneRegex.test(user_name)) {
-      return 'Phone number';
-    } else {
-      return 'Invalid input';
+  async compareHash(value: string, hashed: string) {
+    return bcrypt.compare(value, hashed);
+  },
+
+  async requestOtp({
+    phone_number,
+    role,
+  }: {
+    phone_number: string;
+    role: string;
+  }): Promise<{ expiresIn: number }> {
+    const TTL = Number(process.env.OTP_TTL_MINUTES || 5);
+    const MaxAttempt = Number(process.env.MAX_ATTEMPT || 3);
+
+    try {
+      // Handle brute force attempt
+      const attempt_count = await AuthRepository.verifyAttemptCount(phone_number, role);
+      if (attempt_count > MaxAttempt) {
+        throw {
+          statusCode: 500,
+          message: `${role} - [${phone_number}] exceeds maximum verification attempts`,
+          detail: `${role} - [${phone_number}] exceeds maximum verification attempts`,
+        };
+      }
+
+      // Generate otp and hash it
+      const otp = AuthService.genNumericOTP(6);
+      const otpHash = await AuthService.hashValue(otp);
+
+      console.log(`otp for ${phone_number} is ${otp}`);
+      const expires_at = new Date(Date.now() + TTL * 60 * 1000);
+
+      // Save otp hash
+      await AuthRepository.saveHashedOtp(phone_number, role, otpHash, expires_at, attempt_count);
+
+      return { expiresIn: TTL };
+    } catch (err) {
+      throw {
+        statusCode: 500,
+        message: 'Failed to send OTP',
+        detail: err,
+      };
     }
   },
-  async createAdmin(data: {
-    name: string;
-    password: string;
-    contact: string;
-    alternate_contact: string;
+
+  async verifyOtp({
+    phone_number,
+    role,
+    otp,
+  }: {
+    phone_number: string;
     role: string;
-  }): Promise<User> {
-    const hashed_password = await AuthService.hashPassword(data.password);
-    return await AuthRepository.createAdmin({ ...data, password: hashed_password });
+    otp: string;
+  }) {
+    try {
+      // Get otp data
+      const otpData = await AuthRepository.getOtpData(phone_number, role);
+      if (!otpData) {
+        throw {
+          statusCode: 400,
+          message: 'OTP not found or not requested',
+        };
+      }
+
+      const { otp_hash, expires_at, attempt_count } = otpData;
+
+      // Check expiry
+      if (new Date() > new Date(expires_at)) {
+        throw {
+          statusCode: 400,
+          message: 'OTP expired',
+        };
+      }
+
+      // Compare otp with hash
+      const isMatch = await AuthService.compareHash(otp, otp_hash);
+
+      if (!isMatch) {
+        // increase attempt_count
+        await AuthRepository.incrementAttemptCount(phone_number, role);
+
+        throw {
+          statusCode: 400,
+          message: 'Invalid OTP',
+        };
+      }
+
+      // Clear otp record
+      await AuthRepository.clearOtpRecord(phone_number, role);
+
+      // Verify existing user
+      const userData = await AuthRepository.getUser(phone_number, role);
+      const isExistingUser = !!userData;
+
+      let accessToken: string | undefined;
+      let refreshToken: string | undefined;
+
+      if (isExistingUser && userData) {
+        // Generate access token and refresh token
+        const payload: JwtPayload & { id: string } = { id: userData.id };
+        const tokens = AuthService.generateTokens(payload);
+
+        accessToken = tokens.accessToken;
+        refreshToken = tokens.refreshToken;
+      }
+
+      return {
+        verified: true,
+        userData,
+        isNewUser: !isExistingUser,
+        ...(isExistingUser ? { accessToken } : {}),
+        ...(isExistingUser ? { refreshToken } : {}),
+      };
+    } catch (error) {
+      throw {
+        statusCode: 500,
+        message: 'Failed to send OTP',
+        detail: error,
+      };
+    }
   },
+
   generateTokens(payload: JwtPayload & { id: string }) {
     const accessTokenOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
     const refreshTokenOptions: SignOptions = { expiresIn: config.jwt.refreshExpiresIn };
@@ -81,81 +191,6 @@ export const AuthService = {
     } catch (error) {
       throw { statusCode: 401, message: 'Invalid or expired refresh token' };
     }
-  },
-
-  async signIn(data: {
-    user_name: string;
-    password: string;
-  }): Promise<{ accessToken: string; refreshToken: string }> {
-    let userData = await AuthRepository.getUserData({ user_name: data?.user_name });
-    if (!userData) {
-      throw { statusCode: 401, message: 'Invalid credentials' };
-    }
-    const isPasswordValid = await AuthService.validatePassword(data?.password, userData?.password);
-    if (!isPasswordValid) {
-      throw { statusCode: 401, message: 'Invalid credentials' };
-    }
-    const payload: JwtPayload & { id: string } = { id: userData.id };
-
-    const tokens = AuthService.generateTokens(payload);
-    return tokens;
-  },
-  async forgotPassword(data: { user_name: string }): Promise<boolean> {
-    let userData = await AuthRepository.getUserData({ user_name: data?.user_name });
-    if (!userData) {
-      throw { statusCode: 404, message: 'User not found' };
-    }
-    let type = AuthService.checkUserName(data?.user_name);
-    switch (type) {
-      case 'Email':
-        const resetToken = AuthService.generateResetToken();
-        const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour expiry
-
-        // Save reset token to database
-        await AuthRepository.storeResetToken({
-          userId: userData.id,
-          reset_token: resetToken,
-          expires_at: resetTokenExpiry,
-        });
-
-        // Email configuration
-        const resetUrl = `${config.prodURL}/reset-password?token=${resetToken}`;
-        sendMail({
-          to: [data?.user_name],
-          subject: 'Password Reset Request',
-          body: `
-            <h2>Password Reset</h2>
-            <p>You requested a password reset. Click the link below to reset your password:</p>
-            <a href="${resetUrl}">Reset Password</a>
-            <p>This link will expire in 1 hour.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-          `,
-        });
-        break;
-      default:
-        throw { statusCode: 400, message: 'Invalid userName. Must be a valid email.' };
-    }
-    return true;
-  },
-  async resetPassword(data: { reset_token: string; new_password: string }): Promise<boolean> {
-    const user = await AuthRepository.getUserDataBasedOnResetToken({
-      reset_token: data.reset_token,
-    });
-    if (!user) {
-      throw { statusCode: 400, message: 'Invalid or expired reset token' };
-    }
-    if (!user?.reset_token_expiry || new Date() > new Date(user?.reset_token_expiry)) {
-      throw { statusCode: 400, message: 'Reset token has expired' };
-    }
-    const hashedPassword = await AuthService.hashPassword(data.new_password);
-    await AuthRepository.updatePassword({ userId: user.id, new_password: hashedPassword });
-    // Clear reset token and expiry
-    await AuthRepository.storeResetToken({
-      userId: user.id,
-      reset_token: '',
-      expires_at: null,
-    });
-    return true;
   },
 
   async getMe(userId: string): Promise<User | null> {

@@ -1,94 +1,70 @@
 // src/modules/auth/auth.routes.ts
 import { Router } from 'express';
-import { AuthController } from './auth.controller';
 import { celebrate, Joi, Segments } from 'celebrate';
+import { AuthController } from './auth.controller';
 import isAuthenticated from '../../shared/authentication';
-const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{5,18}$/;
 
 const router = Router();
 
 router.post(
-  '/signin',
+  '/request-otp',
   celebrate({
     [Segments.BODY]: Joi.object().keys({
-      user_name: Joi.alternatives()
-        .try(
-          Joi.string().email(),
-          Joi.string().pattern(/^[0-9]{6,15}$/) // phone: 6–15 digits
-        )
+      phone_number: Joi.string()
+        .pattern(/^[0-9]{6,15}$/)
         .required()
         .messages({
-          'alternatives.match': 'Contact must be a valid email or phone number.',
+          'string.empty': 'Phone number is required.',
+          'string.pattern.base': 'Phone number must contain only digits (6–15 digits).',
         }),
-      password: Joi.string().required().min(5).max(18).pattern(passwordRegex).messages({
-        'string.pattern.base':
-          'Password must contain at least 1 uppercase letter, 1 number, and 1 special character.',
+      role: Joi.string().valid('customer', 'driver').required().messages({
+        'any.only': 'Role must be one of: user, driver.',
       }),
     }),
   }),
-  AuthController.signIn
-);
-router.post(
-  '/forgot-password',
-  celebrate({
-    [Segments.BODY]: Joi.object().keys({
-      user_name: Joi.alternatives()
-        .try(
-          Joi.string().email(),
-          Joi.string().pattern(/^[0-9]{6,15}$/) // phone: 6–15 digits
-        )
-        .required()
-        .messages({
-          'alternatives.match': 'Contact must be a valid email or phone number.',
-        }),
-    }),
-  }),
-  AuthController.forgotPassword
-);
-router.post(
-  '/reset-password',
-  celebrate({
-    [Segments.BODY]: Joi.object().keys({
-      reset_token: Joi.string().required(),
-      new_password: Joi.string().required().min(5).max(18).pattern(passwordRegex).messages({
-        'string.pattern.base':
-          'Password must contain at least 1 uppercase letter, 1 number, and 1 special character.',
-      }),
-    }),
-  }),
-  AuthController.resetPassword
+  AuthController.requestOtp
 );
 
 router.post(
-  '/admin',
+  '/verify-otp',
   celebrate({
     [Segments.BODY]: Joi.object().keys({
-      name: Joi.string().required().min(3).max(30),
-      password: Joi.string().required().min(5).max(18).pattern(passwordRegex).messages({
-        'string.pattern.base':
-          'Password must contain at least 1 uppercase letter, 1 number, and 1 special character.',
-      }),
-      contact: Joi.alternatives()
-        .try(
-          Joi.string().email(),
-          Joi.string().pattern(/^[0-9]{6,15}$/) // phone: 6–15 digits
-        )
+      phone_number: Joi.string()
+        .pattern(/^[0-9]{6,15}$/)
         .required()
         .messages({
-          'alternatives.match': 'Contact must be a valid email or phone number.',
+          'string.empty': 'Phone number is required.',
+          'string.pattern.base': 'Phone number must contain only digits (6–15 digits).',
         }),
-      alternate_contact: Joi.string()
-        .pattern(/^[0-9]{6,15}$/) // phone only
-        .allow('') // can be empty
+      role: Joi.string().valid('customer', 'driver').required().messages({
+        'any.only': 'Role must be one of: customer, driver.',
+      }),
+      otp: Joi.string()
+        .length(6)
+        .pattern(/^[0-9]+$/)
+        .required()
         .messages({
-          'string.pattern.base': 'Alternate contact must be a valid phone number.',
+          'string.empty': 'OTP is required',
+          'string.length': 'OTP must be exactly 6 digits',
+          'string.pattern.base': 'OTP must be a number',
         }),
     }),
   }),
-  AuthController.createAdmin
+  AuthController.verifyOtp
 );
 
-router.post('/refresh-token', AuthController.refreshAccessToken);
+router.post(
+  '/refresh-token',
+  celebrate({
+    [Segments.BODY]: Joi.object({
+      refreshToken: Joi.string().required().messages({
+        'string.empty': 'Refresh token is required.',
+        'any.required': 'Refresh token is required.',
+      }),
+    }),
+  }),
+  AuthController.refreshAccessToken
+);
 
 router.use(isAuthenticated);
 router.get('/me', AuthController.getMe);

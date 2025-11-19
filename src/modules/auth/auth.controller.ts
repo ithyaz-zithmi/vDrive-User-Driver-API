@@ -12,120 +12,59 @@ interface AuthRequest extends Request {
 }
 
 export const AuthController = {
-  async createAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { user_name, password } = req.body;
+  async requestOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { phone_number, role } = req.body;
 
     try {
-      logger.info(`Admin creation started: ${user_name}`);
+      logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
 
-      const adminData = { ...req.body, role: 'admin' as const };
-      const newAdmin = await AuthService.createAdmin(adminData);
-
-      const { password: _, reset_token, reset_token_expiry, ...safeAdmin } = newAdmin as any;
-
-      logger.info(`🛡️ Admin created: ${user_name} (ID: ${newAdmin.id})`);
-      successResponse(res, 201, 'Admin user created successfully', safeAdmin);
-    } catch (error: any) {
-      logger.error(`❌ Admin creation failed: ${user_name} - ${error.message}`);
-      next(error);
-    }
-  },
-
-  async signIn(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { user_name } = req.body;
-
-    try {
-      logger.info(`User login attempt: ${user_name || 'unknown'}`);
-
-      const { user_name: username, password } = req.body;
-
-      if (!username?.trim()) {
-        throw { statusCode: 400, message: 'Username is required' };
-      }
-      if (!password?.trim()) {
-        throw { statusCode: 400, message: 'Password is required' };
+      if (!phone_number?.trim()) {
+        throw { statusCode: 400, message: 'Phone number is required' };
       }
 
-      const tokens = await AuthService.signIn({ user_name: username, password });
+      const result = await AuthService.requestOtp({ phone_number, role });
 
-      const isProduction = config.nodeEnv === 'production';
-      let refreshTokenExpiry: number;
+      logger.info(`OTP sent successfully to: ${phone_number}`);
 
-      if (typeof config.jwt.refreshExpiresIn === 'number') {
-        refreshTokenExpiry = config.jwt.refreshExpiresIn;
-      } else {
-        refreshTokenExpiry = ms(config.jwt.refreshExpiresIn || '7d');
-      }
-
-      res.cookie('refresh_token', tokens.refreshToken, {
-        httpOnly: true,
-        secure: isProduction,
-        maxAge: refreshTokenExpiry,
-        sameSite: 'none',
-        // domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
-        path: '/api/auth',
-      });
-
-      logger.info(`User signed in successfully: ${user_name}`);
-      successResponse(res, 200, 'User signed in successfully', {
-        accessToken: tokens.accessToken,
+      successResponse(res, 200, 'OTP sent successfully', {
+        expiresIn: result.expiresIn,
       });
     } catch (error: any) {
-      logger.warn(`Login failed for ${user_name || 'unknown'}: ${error.message}`);
+      logger.warn(`OTP send failed for ${phone_number || 'unknown'}: ${error.detail}`);
       next(error);
     }
   },
 
-  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { user_name } = req.body;
+  async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { phone_number, role, otp } = req.body;
 
     try {
-      logger.info(`Password reset requested for: ${user_name || 'unknown'}`);
+      logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
 
-      if (!user_name?.trim()) {
-        throw { statusCode: 400, message: 'Username is required' };
+      if (!phone_number?.trim()) {
+        throw { statusCode: 400, message: 'Phone number is required' };
       }
 
-      await AuthService.forgotPassword({ user_name });
+      const result = await AuthService.verifyOtp({ phone_number, role, otp });
 
-      logger.info(`Password reset link sent successfully to: ${user_name}`);
-      successResponse(res, 200, 'Forgot password link sent successfully');
+      logger.info(`OTP sent successfully to: ${phone_number}`);
+
+      successResponse(res, 200, 'OTP sent successfully', {
+        ...result,
+      });
     } catch (error: any) {
-      logger.warn(`Password reset request failed for ${user_name || 'unknown'}: ${error.message}`);
-      next(error);
-    }
-  },
-
-  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { reset_token, new_password } = req.body;
-
-    try {
-      logger.info('Password reset attempt with token');
-
-      if (!reset_token?.trim()) {
-        throw { statusCode: 400, message: 'Reset token is required' };
-      }
-      if (!new_password?.trim()) {
-        throw { statusCode: 400, message: 'New password is required' };
-      }
-
-      await AuthService.resetPassword({ reset_token, new_password });
-
-      logger.info('Password reset completed successfully');
-      successResponse(res, 200, 'Password reset successfully');
-    } catch (error: any) {
-      logger.warn(`Password reset failed with token: ${error.message}`);
+      logger.warn(`OTP send failed for ${phone_number || 'unknown'}: ${error.message}`);
       next(error);
     }
   },
 
   async refreshAccessToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const refreshToken = req.cookies?.refresh_token;
+      const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        logger.warn('Refresh token not found in cookies');
-        throw { statusCode: 401, message: 'Refresh token not found in cookies' };
+        logger.warn('Refresh token not found in body');
+        throw { statusCode: 401, message: 'Refresh token not found in body' };
       }
 
       logger.info('Access token refresh attempt');
