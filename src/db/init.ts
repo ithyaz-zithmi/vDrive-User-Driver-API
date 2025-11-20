@@ -1,4 +1,4 @@
-import { query } from "../shared/database";
+import { query } from '../shared/database';
 
 const createTables = [
   `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
@@ -9,17 +9,31 @@ const createTables = [
   `
   CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    password TEXT NOT NULL,
-    contact TEXT NOT NULL UNIQUE,
-    alternate_contact VARCHAR(20),
-    role VARCHAR(20) CHECK (role IN ('customer', 'admin')) NOT NULL,
-    reset_token TEXT,
-    reset_token_expiry TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(15) NOT NULL,
+    alternate_contact VARCHAR(15),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('customer', 'driver')),
+    gender VARCHAR(20),
+    date_of_birth DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    email VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   );
   `,
+
+  // ==============================
+  // OTP TABLE
+  // ==============================
+  ` CREATE TABLE otp (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone_number VARCHAR(15) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('customer', 'driver')),
+    otp_hash TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP NOT NULL,
+    attempt_count INT NOT NULL DEFAULT 1
+);`,
 ];
 
 async function initDb() {
@@ -27,9 +41,9 @@ async function initDb() {
     for (const sql of createTables) {
       await query(sql);
     }
-    console.log("✅ All tables are ready");
+    console.log('✅ All tables are ready');
   } catch (err) {
-    console.error("❌ Error creating tables:", err);
+    console.error('❌ Error creating tables:', err);
     throw err;
   }
 }
