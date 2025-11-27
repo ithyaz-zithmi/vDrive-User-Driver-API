@@ -11,7 +11,7 @@ router.get('/health-check', (req, res) => {
 });
 
 router.use('/auth', authRoutes);
-router.use(isAuthenticated);
 router.use('/users', userRoutes);
+router.use(isAuthenticated);
 
 export default router;

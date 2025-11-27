@@ -3,7 +3,6 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { successResponse } from '../../shared/errorHandler';
 import { logger } from '../../shared/logger';
-import ms from 'ms';
 import config from '../../config';
 import jwt from 'jsonwebtoken';
 
@@ -13,7 +12,7 @@ interface AuthRequest extends Request {
 
 export const AuthController = {
   async requestOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, role } = req.body;
+    const { phoneNumber: phone_number, role } = req.body;
 
     try {
       logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
@@ -36,7 +35,7 @@ export const AuthController = {
   },
 
   async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, role, otp } = req.body;
+    const { phoneNumber: phone_number, role, otp } = req.body;
 
     try {
       logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
@@ -81,31 +80,6 @@ export const AuthController = {
       });
     } catch (error: any) {
       logger.warn(`Token refresh failed: ${error.message}`);
-      next(error);
-    }
-  },
-
-  async getMe(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const userId = req.user?.id;
-
-      if (!userId) {
-        logger.warn('getMe called without user ID');
-        throw { statusCode: 401, message: 'User not authenticated' };
-      }
-
-      logger.info(`Fetching profile for user ID: ${userId}`);
-      const userProfile = await AuthService.getMe(userId);
-
-      if (!userProfile) {
-        logger.warn(`User not found for ID: ${userId}`);
-        throw { statusCode: 404, message: 'User not found' };
-      }
-
-      logger.info(`Profile fetched successfully for user ID: ${userId}`);
-      successResponse(res, 200, 'User profile retrieved successfully', userProfile);
-    } catch (error: any) {
-      logger.error(`getMe error: ${error.message}`);
       next(error);
     }
   },
