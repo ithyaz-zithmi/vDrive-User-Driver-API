@@ -1,11 +1,12 @@
-// src/modules/auth/auth.controller.ts - Optimized with Winston logger
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { successResponse } from '../../shared/errorHandler';
 import { logger } from '../../shared/logger';
-import ms from 'ms';
 import config from '../../config';
 import jwt from 'jsonwebtoken';
+import { User } from '../users/user.model';
+import { UserStatus } from '../../enums/user.enums';
+import { UserService } from '../users/user.service';
 
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -110,33 +111,33 @@ export const AuthController = {
     }
   },
 
-  async signOut(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async signUp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      res.clearCookie('refresh_token', {
-        httpOnly: true,
-        secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
-        path: '/api/auth',
-      });
+      const { name, phone_number, alternate_number, date_of_birth, role, gender, email, status } =
+        req.body;
 
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-          const decoded = jwt.verify(token, config.jwt.secret) as any;
-          if (decoded?.id) {
-            logger.info(`User signed out: User ID ${decoded.id}`);
-          }
-        } catch (error) {
-          logger.info('Sign out completed (token expired/malformed)');
-        }
-      } else {
-        logger.info('Sign out completed (no auth token provided)');
+      // check if user already exists
+      const exists = await AuthService.verifyUser(phone_number, role);
+      if (exists) {
+        throw { statusCode: 409, message: 'User already exists' };
       }
 
-      successResponse(res, 200, 'User signed out successfully');
+      const body: User = {
+        name,
+        phone_number,
+        alternate_contact: alternate_number || null,
+        date_of_birth: date_of_birth || null,
+        role,
+        gender: gender || null,
+        email: email || null,
+        status: status || UserStatus.ACTIVE,
+      };
+
+      const newUser = await UserService.createUser(body);
+
+      successResponse(res, 201, 'User created successfully', newUser);
     } catch (error: any) {
-      logger.error(`Sign out error: ${error.message}`);
+      logger.warn(`User creation failed: ${error.message}`);
       next(error);
     }
   },

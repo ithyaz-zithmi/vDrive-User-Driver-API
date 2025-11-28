@@ -3,7 +3,9 @@ import { AuthRepository } from './auth.repository';
 import * as bcrypt from 'bcrypt';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import config from '../../config';
-import { sendMail } from '../../shared/sendEmail';
+import { UserRepository } from '../users/user.repository';
+import { UserRole, UserStatus } from '../../enums/user.enums';
+import { isInvalidUser } from '../../utilities/helper';
 import { User } from '../users/user.model';
 
 export const AuthService = {
@@ -124,7 +126,7 @@ export const AuthService = {
       let accessToken: string | undefined;
       let refreshToken: string | undefined;
 
-      if (isExistingUser && userData) {
+      if (isExistingUser && userData && userData.id) {
         // Generate access token and refresh token
         const payload: JwtPayload & { id: string } = { id: userData.id };
         const tokens = AuthService.generateTokens(payload);
@@ -177,9 +179,11 @@ export const AuthService = {
       }
 
       // Check if user exists
-      const userData = await AuthRepository.getUserDataById(decoded.id);
-      if (!userData) {
-        throw { statusCode: 401, message: 'User not found' };
+      const userData = await UserRepository.findById(decoded.id, UserStatus.DELETED);
+
+      const inValidUser = isInvalidUser(userData);
+      if (!userData?.id || inValidUser) {
+        throw { statusCode: 500, message: 'Invalid user record: missing ID' };
       }
 
       // Generate new access token
@@ -194,6 +198,11 @@ export const AuthService = {
   },
 
   async getMe(userId: string): Promise<User | null> {
-    return await AuthRepository.getUserProfileById(userId);
+    return await UserRepository.findById(userId, UserStatus.DELETED);
+  },
+
+  async verifyUser(phone_number: string, role: UserRole): Promise<boolean> {
+    const user = await AuthRepository.getUser(phone_number, role);
+    return !!user;
   },
 };
