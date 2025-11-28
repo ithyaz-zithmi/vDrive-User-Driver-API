@@ -141,35 +141,4 @@ export const AuthController = {
       next(error);
     }
   },
-
-  async signOut(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      res.clearCookie('refresh_token', {
-        httpOnly: true,
-        secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
-        path: '/api/auth',
-      });
-
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-          const decoded = jwt.verify(token, config.jwt.secret) as any;
-          if (decoded?.id) {
-            logger.info(`User signed out: User ID ${decoded.id}`);
-          }
-        } catch (error) {
-          logger.info('Sign out completed (token expired/malformed)');
-        }
-      } else {
-        logger.info('Sign out completed (no auth token provided)');
-      }
-
-      successResponse(res, 200, 'User signed out successfully');
-    } catch (error: any) {
-      logger.error(`Sign out error: ${error.message}`);
-      next(error);
-    }
-  },
 };
