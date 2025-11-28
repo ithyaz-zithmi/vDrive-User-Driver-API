@@ -5,15 +5,15 @@ import { validateBody, validateParams } from '../../utilities/helper';
 
 const router = Router();
 
+router.get('/', UserController.getUsers);
+
+router.get('/:id', validateParams(UserValidation.idValidation), UserController.getUserById);
+
 router.post(
   '/create',
   validateBody(UserValidation.createUserValidation),
   UserController.createUser
 );
-
-router.get('/', UserController.getUsers);
-
-router.get('/:id', validateParams(UserValidation.idValidation), UserController.getUserById);
 
 router.patch(
   '/update/:id',

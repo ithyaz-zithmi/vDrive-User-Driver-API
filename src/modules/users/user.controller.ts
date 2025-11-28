@@ -31,9 +31,9 @@ export const UserController = {
     try {
       const body: User = {
         name: req.body.name,
-        phone_number: req.body.phoneNumber,
-        alternate_contact: req.body.alternateNumber || '',
-        date_of_birth: req.body.dateOfBirth || null,
+        phone_number: req.body.phone_number,
+        alternate_contact: req.body.alternate_number || '',
+        date_of_birth: req.body.date_of_birth || null,
         role: req.body.role,
         status: req.body.status || UserStatus.ACTIVE,
         gender: req.body.gender || '',
@@ -56,11 +56,11 @@ export const UserController = {
       const updateData = Object.fromEntries(
         Object.entries({
           name: req.body.name,
-          phone_number: req.body.phoneNumber,
-          alternate_contact: req.body.alternateNumber,
+          phone_number: req.body.phone_number,
+          alternate_contact: req.body.alternate_number,
           role: req.body.role,
           gender: req.body.gender,
-          date_of_birth: req.body.dateOfBirth,
+          date_of_birth: req.body.date_of_birth,
           status: req.body.status,
           email: req.body.email,
         }).filter(([_, value]) => value !== undefined)
