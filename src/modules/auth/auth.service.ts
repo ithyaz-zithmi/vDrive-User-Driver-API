@@ -4,8 +4,9 @@ import * as bcrypt from 'bcrypt';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import config from '../../config';
 import { UserRepository } from '../users/user.repository';
-import { UserStatus } from '../../enums/user.enums';
+import { UserRole, UserStatus } from '../../enums/user.enums';
 import { isInvalidUser } from '../../utilities/helper';
+import { User } from '../users/user.model';
 
 export const AuthService = {
   generateResetToken(): string {
@@ -194,5 +195,14 @@ export const AuthService = {
     } catch (error) {
       throw { statusCode: 401, message: 'Invalid or expired refresh token' };
     }
+  },
+
+  async getMe(userId: string): Promise<User | null> {
+    return await UserRepository.findById(userId, UserStatus.DELETED);
+  },
+
+  async verifyUser(phone_number: string, role: UserRole): Promise<boolean> {
+    const user = await AuthRepository.getUser(phone_number, role);
+    return !!user;
   },
 };

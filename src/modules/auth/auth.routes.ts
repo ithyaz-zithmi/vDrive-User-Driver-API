@@ -4,6 +4,7 @@ import { AuthController } from './auth.controller';
 import isAuthenticated from '../../shared/authentication';
 import { AuthValidation } from './auth.validator';
 import { validateBody } from '../../utilities/helper';
+import { UserValidation } from '../users/user.validator';
 
 const router = Router();
 
@@ -25,7 +26,12 @@ router.post(
   AuthController.refreshAccessToken
 );
 
+router.post('/signup', validateBody(UserValidation.createUserValidation), AuthController.signUp);
+
 router.use(isAuthenticated);
+
+router.get('/me', AuthController.getMe);
+
 router.post('/signout', AuthController.signOut);
 
 export default router;
