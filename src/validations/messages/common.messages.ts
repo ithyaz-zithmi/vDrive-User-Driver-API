@@ -28,10 +28,10 @@ const common_messages = {
     'string.empty': 'Gender cannot be empty',
   },
 
-  alternateNumber: {
-    'string.base': 'Alternate number must be a string',
-    'string.empty': 'Alternate number cannot be empty',
-    'string.pattern.base': 'Alternate number must contain 6–15 digits',
+  alternateContact: {
+    'string.base': 'Alternate contact number must be a string',
+    'string.empty': 'Alternate contact number cannot be empty',
+    'string.pattern.base': 'Alternate contact number must contain 6–15 digits',
   },
 
   dateOfBirth: {
@@ -51,6 +51,14 @@ const common_messages = {
     'string.uuid': 'User ID must be a valid UUID v4',
     'string.empty': 'User ID cannot be empty',
     'any.required': 'User ID is required',
+  },
+
+  deviceId: {
+    'string.base': 'Device ID must be a string',
+    'string.empty': 'Device ID cannot be empty',
+    'string.min': 'Device ID must be at least 16 characters long',
+    'string.max': 'Device ID cannot exceed 64 characters',
+    'any.required': 'Device ID is required',
   },
 };
 

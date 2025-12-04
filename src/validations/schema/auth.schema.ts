@@ -6,3 +6,5 @@ export const otpRule = Joi.string()
   .required();
 
 export const refreshTokenRule = Joi.string().required();
+
+export const allowNewDeviceRule = Joi.boolean().required();
