@@ -12,9 +12,16 @@ export const roleRule = Joi.string()
 
 export const emailRule = Joi.string().trim().lowercase().email().allow('', null).optional();
 
-export const userNameRule = Joi.string()
+export const firstNameRule = Joi.string()
   .trim()
   .min(3)
+  .max(30)
+  .pattern(/^[a-zA-Z0-9\s]+$/)
+  .required();
+
+export const lastNameRule = Joi.string()
+  .trim()
+  .min(1)
   .max(30)
   .pattern(/^[a-zA-Z0-9\s]+$/)
   .required();
@@ -24,7 +31,7 @@ export const genderRule = Joi.string()
   .allow('', null)
   .optional();
 
-export const alternateNumberRule = Joi.string()
+export const alternateContactRule = Joi.string()
   .trim()
   .pattern(/^[0-9]{6,15}$/)
   .allow('', null)
@@ -42,3 +49,5 @@ export const statusRule = Joi.string()
   .optional();
 
 export const userIdRule = Joi.string().uuid({ version: 'uuidv4' });
+
+export const deviceIdRule = Joi.string().min(16).max(64);

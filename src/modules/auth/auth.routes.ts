@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import isAuthenticated from '../../shared/authentication';
 import { AuthValidation } from './auth.validator';
-import { validateBody } from '../../utilities/helper';
+import { validateBody, validateParams } from '../../utilities/helper';
 import { UserValidation } from '../users/user.validator';
 
 const router = Router();
@@ -31,5 +31,7 @@ router.post('/signup', validateBody(UserValidation.createUserValidation), AuthCo
 router.use(isAuthenticated);
 
 router.get('/me', AuthController.getMe);
+
+router.get('/signout/:id', validateParams(UserValidation.idValidation), AuthController.signOut);
 
 export default router;

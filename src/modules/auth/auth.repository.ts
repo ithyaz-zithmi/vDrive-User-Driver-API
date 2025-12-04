@@ -54,4 +54,16 @@ export const AuthRepository = {
 
     return result?.rows[0];
   },
+
+  async signOutUser(id: string): Promise<boolean> {
+    const result = await query(`UPDATE users SET device_id = NULL WHERE id = $1`, [id]);
+
+    return (result?.rowCount ?? 0) > 0;
+  },
+
+  async userDeviceIDUpdate(device_id: string, id: string): Promise<boolean> {
+    const result = await query(`UPDATE users SET device_id = $1 WHERE id = $2`, [device_id, id]);
+
+    return (result?.rowCount ?? 0) > 0;
+  },
 };

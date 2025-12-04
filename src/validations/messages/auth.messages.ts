@@ -10,6 +10,11 @@ const authMessages = {
     'string.empty': 'Refresh token is required.',
     'any.required': 'Refresh token is required.',
   },
+
+  allowNewDevice: {
+    'boolean.base': 'allowNewDevice must be a boolean value',
+    'any.required': 'Allow New Device is required.',
+  },
 };
 
 export default authMessages;

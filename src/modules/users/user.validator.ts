@@ -8,9 +8,10 @@ export const UserValidation = {
   }),
 
   createUserValidation: Joi.object().keys({
-    name: validationMessages(commonSchema.userNameRule, 'name'),
+    first_name: validationMessages(commonSchema.firstNameRule, 'name'),
+    last_name: validationMessages(commonSchema.lastNameRule, 'name'),
     phone_number: validationMessages(commonSchema.phoneNumberRule, 'phoneNumber'),
-    alternate_number: validationMessages(commonSchema.alternateNumberRule, 'alternateNumber'),
+    alternate_contact: validationMessages(commonSchema.alternateContactRule, 'alternateContact'),
     role: validationMessages(commonSchema.roleRule, 'role'),
     gender: validationMessages(commonSchema.genderRule, 'gender'),
     date_of_birth: validationMessages(commonSchema.dateOfBirthRule, 'dateOfBirth'),
@@ -19,11 +20,12 @@ export const UserValidation = {
   }),
 
   updateUserValidation: Joi.object({
-    name: validationMessages(commonSchema.userNameRule.optional(), 'name'),
+    first_name: validationMessages(commonSchema.firstNameRule.optional(), 'name'),
+    last_name: validationMessages(commonSchema.lastNameRule.optional(), 'name'),
     phone_number: validationMessages(commonSchema.phoneNumberRule.optional(), 'phoneNumber'),
-    alternate_number: validationMessages(
-      commonSchema.alternateNumberRule.optional(),
-      'alternateNumber'
+    alternate_contact: validationMessages(
+      commonSchema.alternateContactRule.optional(),
+      'alternateContact'
     ),
     role: validationMessages(commonSchema.roleRule.optional(), 'role'),
     gender: validationMessages(commonSchema.genderRule.optional(), 'gender'),

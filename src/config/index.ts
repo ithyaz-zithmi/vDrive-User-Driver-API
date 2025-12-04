@@ -28,6 +28,10 @@ interface Config {
     pass: string;
     from: string;
   };
+  auth: {
+    otpExpiryTime: number;
+    maxAttempts: number;
+  };
 }
 
 const config: Config = {
@@ -54,6 +58,10 @@ const config: Config = {
     user: process.env.EMAIL_USER || '',
     pass: process.env.EMAIL_PASS || '',
     from: process.env.SMTP_USER || '',
+  },
+  auth: {
+    otpExpiryTime: Number(process.env.OTP_EXPIRY_TIME) || 5,
+    maxAttempts: Number(process.env.MAX_ATTEMPTS) || 3,
   },
 };
 
