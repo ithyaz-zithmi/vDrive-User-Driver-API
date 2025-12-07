@@ -22,6 +22,7 @@ interface Config {
     refreshExpiresIn: SignOptions['expiresIn'];
   };
   prodURL: string;
+  awsServiceUrl: string;
   email: {
     service: string;
     user: string;
@@ -49,6 +50,7 @@ const config: Config = {
     refreshExpiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'],
   },
   prodURL: process.env.PROD_URL || 'http://localhost:3000',
+  awsServiceUrl: process.env.AWS_SERVICE_URL || 'http://localhost:1235',
   email: {
     service: process.env.EMAIL_SERVICE || 'gmail',
     user: process.env.EMAIL_USER || '',
