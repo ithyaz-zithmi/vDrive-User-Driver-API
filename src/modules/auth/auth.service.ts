@@ -3,8 +3,19 @@ import { AuthRepository } from './auth.repository';
 import * as bcrypt from 'bcrypt';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import config from '../../config';
-import { sendMail } from '../../shared/sendEmail';
+import { UserRepository } from '../users/user.repository';
+import { UserRole, UserStatus } from '../../enums/user.enums';
+import { isInvalidUser } from '../../utilities/helper';
 import { User } from '../users/user.model';
+import { logger } from '../../shared/logger';
+
+interface VerifyOtpUser {
+  phone_number: string;
+  role: string;
+  otp: string;
+  device_id: string;
+  allow_new_device: boolean;
+}
 
 export const AuthService = {
   generateResetToken(): string {
@@ -34,14 +45,29 @@ export const AuthService = {
   async requestOtp({
     phone_number,
     role,
+    device_id,
+    allow_new_device,
   }: {
     phone_number: string;
     role: string;
+    device_id: string;
+    allow_new_device: boolean;
   }): Promise<{ expiresIn: number }> {
-    const TTL = Number(process.env.OTP_TTL_MINUTES || 5);
-    const MaxAttempt = Number(process.env.MAX_ATTEMPT || 3);
+    const TTL = config.auth.otpExpiryTime;
+    const MaxAttempt = config.auth.maxAttempts;
 
     try {
+      // Verify existing user
+      const userData = await AuthRepository.getUser(phone_number, role);
+      const isExistingUser = !!userData;
+
+      if (isExistingUser && userData.device_id !== device_id && !allow_new_device) {
+        throw {
+          statusCode: 500,
+          message: `[${phone_number}] - User Exists for this number`,
+        };
+      }
+
       // Handle brute force attempt
       const attempt_count = await AuthRepository.verifyAttemptCount(phone_number, role);
       if (attempt_count > MaxAttempt) {
@@ -72,15 +98,7 @@ export const AuthService = {
     }
   },
 
-  async verifyOtp({
-    phone_number,
-    role,
-    otp,
-  }: {
-    phone_number: string;
-    role: string;
-    otp: string;
-  }) {
+  async verifyOtp({ phone_number, role, otp, device_id, allow_new_device }: VerifyOtpUser) {
     try {
       // Get otp data
       const otpData = await AuthRepository.getOtpData(phone_number, role);
@@ -91,7 +109,7 @@ export const AuthService = {
         };
       }
 
-      const { otp_hash, expires_at, attempt_count } = otpData;
+      const { otp_hash, expires_at } = otpData;
 
       // Check expiry
       if (new Date() > new Date(expires_at)) {
@@ -124,9 +142,22 @@ export const AuthService = {
       let accessToken: string | undefined;
       let refreshToken: string | undefined;
 
-      if (isExistingUser && userData) {
+      if (isExistingUser && device_id && allow_new_device) {
+        const userId = userData.id;
+        if (!userId) return;
+
+        const updated = await AuthRepository.userDeviceIDUpdate(userId, device_id);
+        if (updated) {
+          logger.info(`Device ID "${device_id}" updated for User ID "${userId}"`);
+        }
+      }
+
+      if (isExistingUser && userData && userData.id) {
         // Generate access token and refresh token
-        const payload: JwtPayload & { id: string } = { id: userData.id };
+        const payload: JwtPayload & { id: string; deviceId: string } = {
+          id: userData.id,
+          deviceId: device_id,
+        };
         const tokens = AuthService.generateTokens(payload);
 
         accessToken = tokens.accessToken;
@@ -149,16 +180,12 @@ export const AuthService = {
     }
   },
 
-  generateTokens(payload: JwtPayload & { id: string }) {
+  generateTokens(payload: JwtPayload & { id: string; deviceId: string }) {
     const accessTokenOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
     const refreshTokenOptions: SignOptions = { expiresIn: config.jwt.refreshExpiresIn };
 
     const accessToken = jwt.sign(payload, config.jwt.secret, accessTokenOptions);
-    const refreshToken = jwt.sign(
-      { id: payload.id },
-      config.jwt.refreshSecret,
-      refreshTokenOptions
-    );
+    const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, refreshTokenOptions);
 
     return {
       accessToken,
@@ -166,24 +193,33 @@ export const AuthService = {
     };
   },
 
-  async refreshAccessToken(refreshToken: string): Promise<string> {
+  async refreshAccessToken(refreshToken: string, device_id: string): Promise<string> {
     try {
       const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as JwtPayload & {
         id: string;
       };
 
-      if (!decoded?.id) {
+      if (!decoded?.id && !decoded?.deviceId) {
         throw { statusCode: 401, message: 'Invalid refresh token' };
       }
 
       // Check if user exists
-      const userData = await AuthRepository.getUserDataById(decoded.id);
-      if (!userData) {
-        throw { statusCode: 401, message: 'User not found' };
+      const userData = await UserRepository.findById(decoded.id, UserStatus.DELETED);
+
+      if (userData?.device_id !== device_id) {
+        throw { statusCode: 404, message: 'Invalid Device login' };
+      }
+
+      const inValidUser = isInvalidUser(userData);
+      if (!userData?.id || inValidUser) {
+        throw { statusCode: 500, message: 'Invalid user record: missing ID' };
       }
 
       // Generate new access token
-      const payload: JwtPayload & { id: string } = { id: userData.id };
+      const payload: JwtPayload & { id: string; deviceId: string } = {
+        id: userData.id,
+        deviceId: userData?.device_id,
+      };
       const accessTokenOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
       const newAccessToken = jwt.sign(payload, config.jwt.secret, accessTokenOptions);
 
@@ -194,6 +230,16 @@ export const AuthService = {
   },
 
   async getMe(userId: string): Promise<User | null> {
-    return await AuthRepository.getUserProfileById(userId);
+    return await UserRepository.findById(userId, UserStatus.DELETED);
+  },
+
+  async verifyUser(phone_number: string, role: UserRole): Promise<boolean> {
+    const user = await AuthRepository.getUser(phone_number, role);
+    return !!user;
+  },
+
+  async signOutUser(id: string): Promise<boolean> {
+    const signOut = await AuthRepository.signOutUser(id);
+    return signOut;
   },
 };

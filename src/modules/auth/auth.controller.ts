@@ -1,11 +1,13 @@
-// src/modules/auth/auth.controller.ts - Optimized with Winston logger
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { successResponse } from '../../shared/errorHandler';
 import { logger } from '../../shared/logger';
-import ms from 'ms';
 import config from '../../config';
 import jwt from 'jsonwebtoken';
+import { User } from '../users/user.model';
+import { UserStatus } from '../../enums/user.enums';
+import { UserService } from '../users/user.service';
+import { formFullName } from '../../utilities/helper';
 
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -13,7 +15,7 @@ interface AuthRequest extends Request {
 
 export const AuthController = {
   async requestOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, role } = req.body;
+    const { phone_number, role, device_id, allow_new_device } = req.body;
 
     try {
       logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
@@ -22,7 +24,12 @@ export const AuthController = {
         throw { statusCode: 400, message: 'Phone number is required' };
       }
 
-      const result = await AuthService.requestOtp({ phone_number, role });
+      const result = await AuthService.requestOtp({
+        phone_number,
+        role,
+        device_id,
+        allow_new_device,
+      });
 
       logger.info(`OTP sent successfully to: ${phone_number}`);
 
@@ -36,7 +43,7 @@ export const AuthController = {
   },
 
   async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, role, otp } = req.body;
+    const { phone_number, role, otp, device_id, allow_new_device } = req.body;
 
     try {
       logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
@@ -45,7 +52,13 @@ export const AuthController = {
         throw { statusCode: 400, message: 'Phone number is required' };
       }
 
-      const result = await AuthService.verifyOtp({ phone_number, role, otp });
+      const result = await AuthService.verifyOtp({
+        phone_number,
+        role,
+        otp,
+        device_id,
+        allow_new_device,
+      });
 
       logger.info(`OTP sent successfully to: ${phone_number}`);
 
@@ -60,7 +73,7 @@ export const AuthController = {
 
   async refreshAccessToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { refreshToken } = req.body;
+      const { refreshToken, device_id } = req.body;
 
       if (!refreshToken) {
         logger.warn('Refresh token not found in body');
@@ -68,11 +81,13 @@ export const AuthController = {
       }
 
       logger.info('Access token refresh attempt');
-      const newAccessToken = await AuthService.refreshAccessToken(refreshToken);
+      const newAccessToken = await AuthService.refreshAccessToken(refreshToken, device_id);
 
       const decoded = jwt.verify(newAccessToken, config.jwt.secret) as any;
-      if (decoded?.id) {
-        logger.info(`Token refreshed successfully for user ID: ${decoded.id}`);
+      if (decoded?.id && decoded?.deviceId) {
+        logger.info(
+          `Token refreshed successfully for User ID: ${decoded.id} and Device Id: ${decoded?.deviceId}`
+        );
       }
 
       successResponse(res, 200, 'Access token refreshed successfully', {
@@ -110,33 +125,57 @@ export const AuthController = {
     }
   },
 
-  async signOut(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async signUp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      res.clearCookie('refresh_token', {
-        httpOnly: true,
-        secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
-        path: '/api/auth',
-      });
+      const {
+        first_name,
+        last_name,
+        phone_number,
+        alternate_contact,
+        date_of_birth,
+        role,
+        gender,
+        email,
+        status,
+        device_id,
+      } = req.body;
 
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-          const decoded = jwt.verify(token, config.jwt.secret) as any;
-          if (decoded?.id) {
-            logger.info(`User signed out: User ID ${decoded.id}`);
-          }
-        } catch (error) {
-          logger.info('Sign out completed (token expired/malformed)');
-        }
-      } else {
-        logger.info('Sign out completed (no auth token provided)');
+      // check if user already exists
+      const exists = await AuthService.verifyUser(phone_number, role);
+      if (exists) {
+        throw { statusCode: 409, message: 'User already exists' };
       }
 
-      successResponse(res, 200, 'User signed out successfully');
+      const body: User = {
+        first_name: first_name ?? '',
+        last_name: last_name ?? '',
+        full_name: formFullName(first_name, last_name),
+        phone_number: phone_number ?? '',
+        alternate_contact: alternate_contact ?? null,
+        date_of_birth: date_of_birth ?? null,
+        role,
+        gender: gender ?? null,
+        email: email ?? null,
+        status: status ?? UserStatus.ACTIVE,
+        device_id: device_id ?? '',
+      };
+
+      const newUser = await UserService.createUser(body);
+
+      successResponse(res, 201, 'User created successfully', newUser);
     } catch (error: any) {
-      logger.error(`Sign out error: ${error.message}`);
+      logger.warn(`User creation failed: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async signOut(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      await AuthService.signOutUser(id);
+      successResponse(res, 200, 'User sign out successfully');
+    } catch (error: any) {
+      logger.warn(`User creation failed: ${error.message}`);
       next(error);
     }
   },

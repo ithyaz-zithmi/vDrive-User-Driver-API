@@ -1,14 +1,17 @@
-// src/modules/users/user.model.ts// src/modules/users/user.model.ts
+import { Gender, UserRole, UserStatus } from '../../enums/user.enums';
 export interface User {
-  id: string;
-  name: string;
+  id?: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
   phone_number: string;
   alternate_contact?: string;
-  role: 'customer' | 'driver';
-  gender?: string;
+  role: UserRole;
+  gender?: Gender;
   date_of_birth?: Date;
-  status: string;
+  status: UserStatus;
   email?: string;
-  created_at: Date;
-  updated_at: Date;
+  device_id: string;
+  created_at?: Date;
+  updated_at?: Date;
 }
