@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validator';
 import { validateBody, validateParams } from '../../utilities/helper';
+import driverDocumentsRoutes from './driver-documents.routes';
 
 const router = Router();
 
@@ -27,5 +28,8 @@ router.delete(
   validateParams(UserValidation.idValidation),
   UserController.deleteUser
 );
+
+// Driver documents routes
+router.use('/documents', driverDocumentsRoutes);
 
 export default router;
