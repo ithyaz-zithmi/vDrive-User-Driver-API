@@ -51,3 +51,13 @@ export const statusRule = Joi.string()
 export const userIdRule = Joi.string().uuid({ version: 'uuidv4' });
 
 export const deviceIdRule = Joi.string().min(16).max(64);
+
+export const pageRule = Joi.number().integer().min(1).default(1).optional();
+
+export const limitRule = Joi.number().integer().min(1).max(100).default(10).optional();
+
+export const searchRule = Joi.string().trim().min(1).max(100).optional().allow('');
+
+export const roleFilterRule = Joi.string()
+  .valid(...Object.values(UserRole))
+  .optional();

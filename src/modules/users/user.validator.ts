@@ -1,6 +1,7 @@
 import { Joi } from 'celebrate';
 import * as commonSchema from '../../validations/schema/common.schema';
 import { validationMessages } from '../../validations/messages/validation.messages';
+import { UserRole } from '../../enums/user.enums';
 
 export const UserValidation = {
   idValidation: Joi.object().keys({
@@ -40,5 +41,12 @@ export const UserValidation = {
 
   deleteUserValidation: Joi.object().keys({
     id: validationMessages(commonSchema.userIdRule, 'userId'),
+  }),
+
+  getUsersQueryValidation: Joi.object().keys({
+    page: validationMessages(commonSchema.pageRule, 'page'),
+    limit: validationMessages(commonSchema.limitRule, 'limit'),
+    search: validationMessages(commonSchema.searchRule, 'search'),
+    role: validationMessages(commonSchema.roleFilterRule, 'role'),
   }),
 };

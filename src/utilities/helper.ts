@@ -12,6 +12,11 @@ export const validateParams = (schema: ReturnType<typeof Joi.object>) =>
     [Segments.PARAMS]: schema,
   });
 
+export const validateQuery = (schema: ReturnType<typeof Joi.object>) =>
+  celebrate({
+    [Segments.QUERY]: schema,
+  });
+
 export const isInvalidUser = (user?: User | null): boolean => {
   if (!user?.id) return true;
   const inactiveStatuses = [UserStatus.DELETED, UserStatus.BLOCKED];

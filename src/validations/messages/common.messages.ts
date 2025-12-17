@@ -60,6 +60,26 @@ const common_messages = {
     'string.max': 'Device ID cannot exceed 64 characters',
     'any.required': 'Device ID is required',
   },
+
+  page: {
+    'number.base': 'Page must be a number',
+    'number.integer': 'Page must be an integer',
+    'number.min': 'Page must be at least 1',
+  },
+
+  limit: {
+    'number.base': 'Limit must be a number',
+    'number.integer': 'Limit must be an integer',
+    'number.min': 'Limit must be at least 1',
+    'number.max': 'Limit cannot exceed 100',
+  },
+
+  search: {
+    'string.base': 'Search must be a string',
+    'string.empty': 'Search cannot be empty',
+    'string.min': 'Search must be at least 1 character long',
+    'string.max': 'Search cannot exceed 100 characters',
+  },
 };
 
 export default common_messages;

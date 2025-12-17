@@ -33,6 +33,7 @@ interface Config {
     otpExpiryTime: number;
     maxAttempts: number;
   };
+  internalServiceApiKey: string;
 }
 
 const config: Config = {
@@ -65,6 +66,7 @@ const config: Config = {
     otpExpiryTime: Number(process.env.OTP_EXPIRY_TIME) || 5,
     maxAttempts: Number(process.env.MAX_ATTEMPTS) || 3,
   },
+  internalServiceApiKey: process.env.INTERNAL_SERVICE_API_KEY || '',
 };
 
 export default config;

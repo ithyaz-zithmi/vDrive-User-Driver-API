@@ -145,11 +145,9 @@
     "test": "jest --coverage",
     "test:auth": "jest __tests__ --testNamePattern=\"Auth\"",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "seed": "ts-node  src/db/setup.ts",
     "build": "tsc",
     "start": "tsc && node dist/server.js",
-    "setup": "npm install && npm run build",
-    "migrate": "node -r ts-node/register ./node_modules/.bin/node-pg-migrate"
+    "setup": "npm install && npm run build"
   },
   "jest": {
     "preset": "ts-jest",

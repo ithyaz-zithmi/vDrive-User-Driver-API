@@ -3,17 +3,55 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { successResponse } from '../../shared/errorHandler';
 import { User } from './user.model';
-import { UserStatus } from '../../enums/user.enums';
+import { UserStatus, UserRole } from '../../enums/user.enums';
 import { logger } from '../../shared/logger';
 import { cleanUndefined, formFullName } from '../../utilities/helper';
 
 export const UserController = {
-  async getUsers(req: Request, res: Response, next: NextFunction) {
+  async getCustomers(req: Request, res: Response, next: NextFunction) {
     try {
-      const users = await UserService.getUsers();
-      return successResponse(res, 200, 'Users fetched successfully', users);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = req.query.search as string;
+
+      const { users, total } = await UserService.getUsers(page, limit, search, UserRole.CUSTOMER);
+      const totalPages = Math.ceil(total / limit);
+
+      return successResponse(res, 200, 'Customers fetched successfully', {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+      });
     } catch (err: any) {
-      logger.error(`getUsers error: ${err.message}`);
+      logger.error(`getCustomers error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async getDrivers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = req.query.search as string;
+
+      const { users, total } = await UserService.getUsers(page, limit, search, UserRole.DRIVER);
+      const totalPages = Math.ceil(total / limit);
+
+      return successResponse(res, 200, 'Drivers fetched successfully', {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+      });
+    } catch (err: any) {
+      logger.error(`getDrivers error: ${err.message}`);
       next(err);
     }
   },
@@ -93,9 +131,39 @@ export const UserController = {
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
       const user = await UserService.deleteUser(req.params.id);
-      return successResponse(res, 200, 'User fetched successfully', user);
+      return successResponse(res, 200, 'User deleted successfully', user);
     } catch (err: any) {
       logger.error(`deleteUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async blockUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.blockUser(req.params.id);
+      return successResponse(res, 200, 'User blocked successfully', user);
+    } catch (err: any) {
+      logger.error(`blockUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async unblockUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.unblockUser(req.params.id);
+      return successResponse(res, 200, 'User unblocked successfully', user);
+    } catch (err: any) {
+      logger.error(`unblockUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async disableUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.disableUser(req.params.id);
+      return successResponse(res, 200, 'User disabled successfully', user);
+    } catch (err: any) {
+      logger.error(`disableUser error: ${err.message}`);
       next(err);
     }
   },
