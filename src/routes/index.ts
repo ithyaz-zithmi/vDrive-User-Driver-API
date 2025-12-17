@@ -3,6 +3,7 @@ import userRoutes from '../modules/users/user.routes';
 import authRoutes from '../modules/auth/auth.routes';
 import s3Routes from '../modules/s3/s3.routes';
 import isAuthenticated from '../shared/authentication';
+import tripRoutes from '../modules/trip/trip.routes';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/auth', authRoutes);
 router.use(isAuthenticated);
 router.use('/users', userRoutes);
 router.use('/s3', s3Routes);
+router.use('/trip', tripRoutes);
 
 export default router;

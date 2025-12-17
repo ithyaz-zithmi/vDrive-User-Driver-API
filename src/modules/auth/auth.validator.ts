@@ -1,5 +1,4 @@
 import { Joi } from 'celebrate';
-import { validationMessages } from '../../validations/messages/validation.messages';
 import { phoneNumberRule, roleRule, deviceIdRule } from '../../validations/schema/common.schema';
 import {
   otpRule,
@@ -9,22 +8,22 @@ import {
 
 export const AuthValidation = {
   requestOtpValidation: Joi.object().keys({
-    phone_number: validationMessages(phoneNumberRule, 'phoneNumber'),
-    role: validationMessages(roleRule, 'role'),
-    device_id: validationMessages(deviceIdRule, 'deviceId'),
-    allow_new_device: validationMessages(allowNewDeviceRule, 'allowNewDevice'),
+    phone_number: phoneNumberRule,
+    role: roleRule,
+    device_id: deviceIdRule,
+    allow_new_device: allowNewDeviceRule,
   }),
 
   verifyOtpValidation: Joi.object().keys({
-    phone_number: validationMessages(phoneNumberRule, 'phoneNumber'),
-    role: validationMessages(roleRule, 'role'),
-    otp: validationMessages(otpRule, 'otp'),
-    device_id: validationMessages(deviceIdRule, 'deviceId'),
-    allow_new_device: validationMessages(allowNewDeviceRule, 'allowNewDevice'),
+    phone_number: phoneNumberRule,
+    role: roleRule,
+    otp: otpRule,
+    device_id: deviceIdRule,
+    allow_new_device: allowNewDeviceRule,
   }),
 
   refreshTokenValidation: Joi.object({
-    refreshToken: validationMessages(refreshTokenRule, 'refreshToken'),
-    device_id: validationMessages(deviceIdRule, 'deviceId'),
+    refreshToken: refreshTokenRule,
+    device_id: deviceIdRule,
   }),
 };
