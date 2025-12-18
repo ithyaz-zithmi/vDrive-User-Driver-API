@@ -24,7 +24,8 @@ export const lastNameRule = Joi.string()
   .min(1)
   .max(30)
   .pattern(/^[a-zA-Z0-9\s]+$/)
-  .required();
+  .allow('', null)
+  .optional();
 
 export const genderRule = Joi.string()
   .valid(...Object.values(Gender))

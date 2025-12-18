@@ -14,9 +14,10 @@ export const UserValidation = {
     alternate_contact: validationMessages(commonSchema.alternateContactRule, 'alternateContact'),
     role: validationMessages(commonSchema.roleRule, 'role'),
     gender: validationMessages(commonSchema.genderRule, 'gender'),
-    date_of_birth: validationMessages(commonSchema.dateOfBirthRule, 'dateOfBirth'),
+    date_of_birth: validationMessages(commonSchema.dateOfBirthRule, 'dateOfBirth'),//--Temporary change
     status: validationMessages(commonSchema.statusRule, 'status'),
     email: validationMessages(commonSchema.emailRule, 'email'),
+     device_id: validationMessages(commonSchema.deviceIdRule, 'deviceId'),
   }),
 
   updateUserValidation: Joi.object({
@@ -32,6 +33,7 @@ export const UserValidation = {
     date_of_birth: validationMessages(commonSchema.dateOfBirthRule.optional(), 'dateOfBirth'),
     status: validationMessages(commonSchema.statusRule.optional(), 'status'),
     email: validationMessages(commonSchema.emailRule.optional(), 'email'),
+    device_id: validationMessages(commonSchema.deviceIdRule.optional(), 'deviceId'),
   })
     .min(1)
     .messages({

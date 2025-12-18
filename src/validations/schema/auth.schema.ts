@@ -1,7 +1,7 @@
 import { Joi } from 'celebrate';
 
 export const otpRule = Joi.string()
-  .length(6)
+  .length(4)
   .pattern(/^[0-9]+$/)
   .required();
 
