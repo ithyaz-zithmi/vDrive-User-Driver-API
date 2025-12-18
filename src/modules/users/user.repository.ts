@@ -41,6 +41,7 @@ export const UserRepository = {
     }
 
   },
+
   async updateUser(id: string, setQuery: string, values: any[]): Promise<User | null> {
     const result = await query(
       `UPDATE users SET ${setQuery}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *;`,

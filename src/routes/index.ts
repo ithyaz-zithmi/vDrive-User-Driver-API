@@ -4,6 +4,7 @@ import authRoutes from '../modules/auth/auth.routes';
 import s3Routes from '../modules/s3/s3.routes';
 import emailRoutes from '../modules/email/email.routes';
 import isAuthenticated from '../shared/authentication';
+import tripRoutes from '../modules/trip/trip.routes';
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.use('/invoices',emailRoutes);
 router.use(isAuthenticated);
 router.use('/users', userRoutes);
 router.use('/s3', s3Routes);
+router.use('/trip', tripRoutes);
 
 
 export default router;

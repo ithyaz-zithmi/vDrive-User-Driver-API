@@ -1,4 +1,3 @@
-// src/modules/users/user.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { successResponse } from '../../shared/errorHandler';
@@ -93,7 +92,7 @@ export const UserController = {
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
       const user = await UserService.deleteUser(req.params.id);
-      return successResponse(res, 200, 'User fetched successfully', user);
+      return successResponse(res, 200, 'User deleted successfully', user);
     } catch (err: any) {
       logger.error(`deleteUser error: ${err.message}`);
       next(err);
