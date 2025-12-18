@@ -35,3 +35,8 @@ export const cleanUndefined = <T extends object>(obj: T): Partial<T> => {
   });
   return cleanObj;
 };
+
+export const enumString = (values: any[]) =>
+  Joi.string()
+    .valid(...values)
+    .required();

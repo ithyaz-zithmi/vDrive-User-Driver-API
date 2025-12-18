@@ -1,52 +1,38 @@
 import { Joi } from 'celebrate';
 import * as commonSchema from '../../validations/schema/common.schema';
-import { validationMessages } from '../../validations/messages/validation.messages';
 import { UserRole } from '../../enums/user.enums';
 
 export const UserValidation = {
   idValidation: Joi.object().keys({
-    id: validationMessages(commonSchema.userIdRule, 'userId'),
+    id: commonSchema.idRule,
   }),
 
   createUserValidation: Joi.object().keys({
-    first_name: validationMessages(commonSchema.firstNameRule, 'name'),
-    last_name: validationMessages(commonSchema.lastNameRule, 'name'),
-    phone_number: validationMessages(commonSchema.phoneNumberRule, 'phoneNumber'),
-    alternate_contact: validationMessages(commonSchema.alternateContactRule, 'alternateContact'),
-    role: validationMessages(commonSchema.roleRule, 'role'),
-    gender: validationMessages(commonSchema.genderRule, 'gender'),
-    date_of_birth: validationMessages(commonSchema.dateOfBirthRule, 'dateOfBirth'),
-    status: validationMessages(commonSchema.statusRule, 'status'),
-    email: validationMessages(commonSchema.emailRule, 'email'),
+    first_name: commonSchema.firstNameRule,
+    last_name: commonSchema.lastNameRule,
+    phone_number: commonSchema.phoneNumberRule,
+    alternate_contact: commonSchema.alternateContactRule,
+    role: commonSchema.roleRule,
+    gender: commonSchema.genderRule,
+    date_of_birth: commonSchema.dateOfBirthRule,
+    status: commonSchema.statusRule,
+    email: commonSchema.emailRule,
+    device_id: commonSchema.deviceIdRule,
   }),
 
   updateUserValidation: Joi.object({
-    first_name: validationMessages(commonSchema.firstNameRule.optional(), 'name'),
-    last_name: validationMessages(commonSchema.lastNameRule.optional(), 'name'),
-    phone_number: validationMessages(commonSchema.phoneNumberRule.optional(), 'phoneNumber'),
-    alternate_contact: validationMessages(
-      commonSchema.alternateContactRule.optional(),
-      'alternateContact'
-    ),
-    role: validationMessages(commonSchema.roleRule.optional(), 'role'),
-    gender: validationMessages(commonSchema.genderRule.optional(), 'gender'),
-    date_of_birth: validationMessages(commonSchema.dateOfBirthRule.optional(), 'dateOfBirth'),
-    status: validationMessages(commonSchema.statusRule.optional(), 'status'),
-    email: validationMessages(commonSchema.emailRule.optional(), 'email'),
+    first_name: commonSchema.firstNameRule.optional(),
+    last_name: commonSchema.lastNameRule.optional(),
+    phone_number: commonSchema.phoneNumberRule.optional(),
+    alternate_contact: commonSchema.alternateContactRule.optional(),
+    role: commonSchema.roleRule.optional(),
+    gender: commonSchema.genderRule.optional(),
+    date_of_birth: commonSchema.dateOfBirthRule.optional(),
+    status: commonSchema.statusRule.optional(),
+    email: commonSchema.emailRule.optional(),
   })
     .min(1)
     .messages({
       'object.min': 'At least one field must be provided to update user',
     }),
-
-  deleteUserValidation: Joi.object().keys({
-    id: validationMessages(commonSchema.userIdRule, 'userId'),
-  }),
-
-  getUsersQueryValidation: Joi.object().keys({
-    page: validationMessages(commonSchema.pageRule, 'page'),
-    limit: validationMessages(commonSchema.limitRule, 'limit'),
-    search: validationMessages(commonSchema.searchRule, 'search'),
-    role: validationMessages(commonSchema.roleFilterRule, 'role'),
-  }),
 };

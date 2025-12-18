@@ -1,4 +1,3 @@
-// src/modules/users/user.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { successResponse } from '../../shared/errorHandler';
