@@ -14,7 +14,8 @@ router.get('/health-check', (req, res) => {
 // S3 Proxy Route
 
 router.use('/auth', authRoutes);
-router.use('/users', isAuthenticatedOrService, userRoutes);
+router.use(isAuthenticatedOrService);
+router.use('/users', userRoutes);
 router.use('/generate-presigned-url', s3Routes);
 router.use('/trip', tripRoutes);
 

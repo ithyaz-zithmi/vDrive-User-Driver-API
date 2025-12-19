@@ -6,7 +6,7 @@ import { successResponse } from '../../shared/errorHandler';
 
 export const S3Controller = {
   async generateUploadUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const url = `${config.awsServiceUrl}/api/s3`;
+    const url = `${config.awsServiceUrl}/api/s3/generate-upload-url`;
 
     try {
       const axiosConfig = {
