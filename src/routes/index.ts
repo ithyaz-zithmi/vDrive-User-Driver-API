@@ -15,7 +15,7 @@ router.get('/health-check', (req, res) => {
 
 router.use('/auth', authRoutes);
 router.use('/users', isAuthenticatedOrService, userRoutes);
-router.use('/s3', s3Routes);
+router.use('/generate-presigned-url', s3Routes);
 router.use('/trip', tripRoutes);
 
 export default router;

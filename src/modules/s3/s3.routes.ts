@@ -5,7 +5,7 @@ import { S3Controller } from './s3.controller';
 const router = Router();
 
 router.post(
-  '/generate-upload-url',
+  '/',
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       key: Joi.string().required().messages({
