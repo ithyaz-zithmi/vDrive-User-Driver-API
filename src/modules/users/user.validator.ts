@@ -1,5 +1,6 @@
 import { Joi } from 'celebrate';
 import * as commonSchema from '../../validations/schema/common.schema';
+import { UserRole } from '../../enums/user.enums';
 
 export const UserValidation = {
   idValidation: Joi.object().keys({

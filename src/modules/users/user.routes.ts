@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validator';
-import { validateBody, validateParams } from '../../utilities/helper';
+import { validateBody, validateParams, validateQuery } from '../../utilities/helper';
 import driverDocumentsRoutes from './driver-documents.routes';
 
 const router = Router();
 
-router.get('/', UserController.getUsers);
+router.get('/customers', UserController.getCustomers);
+
+router.get('/drivers', UserController.getDrivers);
 
 router.get('/:id', validateParams(UserValidation.idValidation), UserController.getUserById);
 
@@ -27,6 +29,20 @@ router.delete(
   '/delete/:id',
   validateParams(UserValidation.idValidation),
   UserController.deleteUser
+);
+
+router.patch('/block/:id', validateParams(UserValidation.idValidation), UserController.blockUser);
+
+router.patch(
+  '/unblock/:id',
+  validateParams(UserValidation.idValidation),
+  UserController.unblockUser
+);
+
+router.patch(
+  '/disable/:id',
+  validateParams(UserValidation.idValidation),
+  UserController.disableUser
 );
 
 // Driver documents routes

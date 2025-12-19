@@ -3,11 +3,40 @@ import { query } from '../../shared/database';
 import { User } from './user.model';
 
 export const UserRepository = {
-  async findAll(): Promise<User[]> {
-    const result = await query(
-      `SELECT * FROM users WHERE status <> 'deleted' ORDER BY created_at DESC`
-    );
-    return result.rows;
+  async findAllWithFilters(
+    page: number,
+    limit: number,
+    search?: string,
+    role?: string
+  ): Promise<{ users: User[]; total: number }> {
+    const offset = (page - 1) * limit;
+    let whereClause = "WHERE status <> 'deleted'";
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (search) {
+      whereClause += ` AND (full_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex + 1})`;
+      params.push(`%${search}%`, `%${search}%`);
+      paramIndex += 2;
+    }
+
+    if (role) {
+      whereClause += ` AND role = $${paramIndex}`;
+      params.push(role);
+      paramIndex += 1;
+    }
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+    const countResult = await query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated results
+    const selectQuery = `SELECT * FROM users ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+    const result = await query(selectQuery, params);
+
+    return { users: result.rows, total };
   },
 
   async findById(id: string, status: string): Promise<User | null> {
@@ -46,6 +75,15 @@ export const UserRepository = {
   },
 
   async deleteUser(id: string, status: string): Promise<User | null> {
+    const result = await query(
+      `UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *;`,
+      [status, id]
+    );
+
+    return result.rows[0] || null;
+  },
+
+  async updateUserStatus(id: string, status: string): Promise<User | null> {
     const result = await query(
       `UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *;`,
       [status, id]

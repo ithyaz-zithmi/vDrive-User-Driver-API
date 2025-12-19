@@ -3,8 +3,8 @@ import { User } from '../users/user.model';
 import { UserStatus } from '../../enums/user.enums';
 
 export const UserService = {
-  async getUsers() {
-    return await UserRepository.findAll();
+  async getUsers(page: number = 1, limit: number = 10, search?: string, role?: string) {
+    return await UserRepository.findAllWithFilters(page, limit, search, role);
   },
 
   async getUserById(id: string) {
@@ -47,6 +47,30 @@ export const UserService = {
     const user = await UserRepository.deleteUser(id, UserStatus.DELETED);
     if (!user) {
       throw { statusCode: 500, message: 'Delete user Failed' };
+    }
+    return user;
+  },
+
+  async blockUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.BLOCKED);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
+  async unblockUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
+  async disableUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.INACTIVE);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
     }
     return user;
   },
