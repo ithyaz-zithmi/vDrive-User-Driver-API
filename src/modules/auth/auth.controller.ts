@@ -5,7 +5,7 @@ import { logger } from '../../shared/logger';
 import config from '../../config';
 import jwt from 'jsonwebtoken';
 import { User } from '../users/user.model';
-import { UserStatus } from '../../enums/user.enums';
+import { UserStatus, UserRole } from '../../enums/user.enums';
 import { UserService } from '../users/user.service';
 import { formFullName } from '../../utilities/helper';
 
@@ -165,6 +165,80 @@ export const AuthController = {
       successResponse(res, 201, 'User created successfully', newUser);
     } catch (error: any) {
       logger.warn(`User creation failed: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async driverSignUp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const {
+        first_name,
+        last_name,
+        phone_number,
+        alternate_contact,
+        date_of_birth,
+        gender,
+        email,
+        device_id,
+      } = req.body;
+
+      // Force role to driver
+      const role = UserRole.DRIVER;
+
+      // check if driver already exists
+      const exists = await AuthService.verifyUser(phone_number, role);
+      if (exists) {
+        throw { statusCode: 409, message: 'Driver already exists' };
+      }
+
+      const body: User = {
+        first_name: first_name ?? '',
+        last_name: last_name ?? '',
+        full_name: formFullName(first_name, last_name),
+        phone_number: phone_number ?? '',
+        alternate_contact: alternate_contact ?? null,
+        date_of_birth: date_of_birth ?? null,
+        role,
+        gender: gender ?? null,
+        email: email ?? null,
+        status: UserStatus.ACTIVE,
+        device_id: device_id ?? '',
+      };
+
+      const newDriver = await UserService.createUser(body);
+
+      successResponse(res, 201, 'Driver created successfully', newDriver);
+    } catch (error: any) {
+      logger.warn(`Driver creation failed: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async driverLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { phone_number, otp, device_id } = req.body;
+
+    try {
+      logger.info(`Driver login request received for: ${phone_number || 'unknown'}`);
+
+      if (!phone_number?.trim()) {
+        throw { statusCode: 400, message: 'Phone number is required' };
+      }
+
+      const result = await AuthService.verifyOtp({
+        phone_number,
+        role: UserRole.DRIVER,
+        otp,
+        device_id,
+        allow_new_device: true,
+      });
+
+      logger.info(`Driver login successful for: ${phone_number}`);
+
+      successResponse(res, 200, 'Driver login successful', {
+        ...result,
+      });
+    } catch (error: any) {
+      logger.warn(`Driver login failed for ${phone_number || 'unknown'}: ${error.message}`);
       next(error);
     }
   },

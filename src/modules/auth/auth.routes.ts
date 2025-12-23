@@ -28,6 +28,18 @@ router.post(
 
 router.post('/signup', validateBody(UserValidation.createUserValidation), AuthController.signUp);
 
+// Driver auth routes
+router.post(
+  '/drivers/signup',
+  validateBody(UserValidation.createUserValidation),
+  AuthController.driverSignUp
+);
+router.post(
+  '/drivers/login',
+  validateBody(AuthValidation.verifyOtpValidation),
+  AuthController.driverLogin
+);
+
 router.use(isAuthenticated);
 
 router.get('/me', AuthController.getMe);

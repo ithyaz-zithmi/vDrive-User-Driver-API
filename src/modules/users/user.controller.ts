@@ -31,30 +31,6 @@ export const UserController = {
     }
   },
 
-  async getDrivers(req: Request, res: Response, next: NextFunction) {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const search = req.query.search as string;
-
-      const { users, total } = await UserService.getUsers(page, limit, search, UserRole.DRIVER);
-      const totalPages = Math.ceil(total / limit);
-
-      return successResponse(res, 200, 'Drivers fetched successfully', {
-        users,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-        },
-      });
-    } catch (err: any) {
-      logger.error(`getDrivers error: ${err.message}`);
-      next(err);
-    }
-  },
-
   async getUserById(req: Request, res: Response, next: NextFunction) {
     try {
       const user = await UserService.getUserById(req.params.id);

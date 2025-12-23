@@ -2,13 +2,11 @@ import { Router } from 'express';
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validator';
 import { validateBody, validateParams, validateQuery } from '../../utilities/helper';
-import driverDocumentsRoutes from './driver-documents.routes';
+import driverDocumentsRoutes from '../drivers/driver-documents.routes';
 
 const router = Router();
 
 router.get('/customers', UserController.getCustomers);
-
-router.get('/drivers', UserController.getDrivers);
 
 router.get('/:id', validateParams(UserValidation.idValidation), UserController.getUserById);
 

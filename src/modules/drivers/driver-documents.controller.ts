@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DriverDocumentsService } from './driver-documents.service';
+import { DriverDocumentsService } from '../drivers/driver-documents.service';
 
 export class DriverDocumentsController {
   static async getDriverDocuments(req: Request, res: Response): Promise<void> {
