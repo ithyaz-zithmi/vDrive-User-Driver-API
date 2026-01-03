@@ -147,7 +147,10 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "tsc && node dist/server.js",
-    "setup": "npm install && npm run build"
+    "setup": "npm install && npm run build",
+    "migrate": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down",
+    "migrate:create": "node-pg-migrate create"
   },
   "jest": {
     "preset": "ts-jest",
