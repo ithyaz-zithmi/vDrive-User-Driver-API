@@ -2,21 +2,21 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { successResponse } from '../../shared/errorHandler';
 import { User } from './user.model';
-import { UserStatus, UserRole } from '../../enums/user.enums';
+import { UserStatus } from '../../enums/user.enums';
 import { logger } from '../../shared/logger';
 import { cleanUndefined, formFullName } from '../../utilities/helper';
 
 export const UserController = {
-  async getCustomers(req: Request, res: Response, next: NextFunction) {
+  async getUsers(req: Request, res: Response, next: NextFunction) {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const search = req.query.search as string;
 
-      const { users, total } = await UserService.getUsers(page, limit, search, UserRole.CUSTOMER);
+      const { users, total } = await UserService.getUsers(page, limit, search);
       const totalPages = Math.ceil(total / limit);
 
-      return successResponse(res, 200, 'Customers fetched successfully', {
+      return successResponse(res, 200, 'Users fetched successfully', {
         users,
         pagination: {
           page,
@@ -26,7 +26,7 @@ export const UserController = {
         },
       });
     } catch (err: any) {
-      logger.error(`getCustomers error: ${err.message}`);
+      logger.error(`getUsers error: ${err.message}`);
       next(err);
     }
   },
@@ -50,7 +50,6 @@ export const UserController = {
         phone_number: req.body.phone_number,
         alternate_contact: req.body.alternate_contact || '',
         date_of_birth: req.body.date_of_birth || null,
-        role: req.body.role,
         status: req.body.status || UserStatus.ACTIVE,
         gender: req.body.gender || '',
         email: req.body.email || '',
@@ -86,7 +85,6 @@ export const UserController = {
         phone_number: rest.phone_number,
         alternate_contact: rest.alternate_number,
         date_of_birth: rest.date_of_birth,
-        role: rest.role,
         status: rest.status,
         gender: rest.gender,
         email: rest.email,
@@ -139,6 +137,40 @@ export const UserController = {
       return successResponse(res, 200, 'User disabled successfully', user);
     } catch (err: any) {
       logger.error(`disableUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async enableUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.enableUser(req.params.id);
+      return successResponse(res, 200, 'User enabled successfully', user);
+    } catch (err: any) {
+      logger.error(`enableUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async searchUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query = req.query.q as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const { users, total } = await UserService.searchUsers(query, page, limit);
+      const totalPages = Math.ceil(total / limit);
+
+      return successResponse(res, 200, 'Users searched successfully', {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+      });
+    } catch (err: any) {
+      logger.error(`searchUsers error: ${err.message}`);
       next(err);
     }
   },

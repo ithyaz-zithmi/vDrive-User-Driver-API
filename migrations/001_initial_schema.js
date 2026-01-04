@@ -32,12 +32,6 @@ export const up = (pgm) => {
   END $$;`);
 
   pgm.sql(`DO $$ BEGIN
-    CREATE TYPE user_role AS ENUM ('customer', 'driver', 'admin');
-  EXCEPTION
-    WHEN duplicate_object THEN null;
-  END $$;`);
-
-  pgm.sql(`DO $$ BEGIN
     CREATE TYPE gender_enum AS ENUM ('male', 'female', 'other');
   EXCEPTION
     WHEN duplicate_object THEN null;
@@ -147,7 +141,6 @@ export const up = (pgm) => {
       email: { type: 'varchar(255)', unique: true },
       reset_token: { type: 'text' },
       reset_token_expiry: { type: 'timestamp with time zone' },
-      role: { type: 'user_role', notNull: true, default: 'customer' },
       status: { type: 'user_status_enum', notNull: true, default: 'active' },
       gender: { type: 'gender_enum' },
       date_of_birth: { type: 'date' },
@@ -194,7 +187,6 @@ export const up = (pgm) => {
       gender: { type: 'gender_enum' },
       date_of_birth: { type: 'date' },
       device_id: { type: 'varchar(100)', unique: true },
-      role: { type: 'user_role', notNull: true, default: 'driver', check: "role = 'driver'" },
       status: { type: 'user_status_enum', notNull: true, default: 'active' },
       rating: { type: 'numeric(3,2)', default: 0, check: 'rating >= 0 AND rating <= 5' },
       total_trips: { type: 'integer', default: 0 },
@@ -348,7 +340,6 @@ export const up = (pgm) => {
     {
       id: { type: 'uuid', primaryKey: true, default: pgm.func('gen_random_uuid()') },
       phone_number: { type: 'varchar(15)', notNull: true, unique: true },
-      role: { type: 'user_role', notNull: true },
       otp_hash: { type: 'text', notNull: true },
       created_at: { type: 'timestamp', notNull: true, default: pgm.func('NOW()') },
       expires_at: { type: 'timestamp', notNull: true },
@@ -433,12 +424,10 @@ export const up = (pgm) => {
   // Users indexes
   pgm.createIndex('users', 'email', { ifNotExists: true });
   pgm.createIndex('users', 'phone_number', { ifNotExists: true });
-  pgm.createIndex('users', 'role', { ifNotExists: true });
   pgm.createIndex('users', 'status', { ifNotExists: true });
   pgm.createIndex('users', 'is_deleted', { ifNotExists: true });
   pgm.createIndex('users', 'deleted_at', { ifNotExists: true });
   pgm.createIndex('users', 'created_at', { ifNotExists: true });
-  pgm.createIndex('users', ['role', 'status'], { ifNotExists: true });
 
   // Vehicles indexes
   pgm.createIndex('vehicles', 'driver_id', { ifNotExists: true });
@@ -472,12 +461,10 @@ export const down = (pgm) => {
   pgm.dropIndex('driver_documents', 'status', { ifExists: true });
   pgm.dropIndex('driver_documents', 'driver_id', { ifExists: true });
   pgm.dropIndex('vehicles', 'driver_id', { ifExists: true });
-  pgm.dropIndex('users', ['role', 'status'], { ifExists: true });
   pgm.dropIndex('users', 'created_at', { ifExists: true });
   pgm.dropIndex('users', 'deleted_at', { ifExists: true });
   pgm.dropIndex('users', 'is_deleted', { ifExists: true });
   pgm.dropIndex('users', 'status', { ifExists: true });
-  pgm.dropIndex('users', 'role', { ifExists: true });
   pgm.dropIndex('users', 'phone_number', { ifExists: true });
   pgm.dropIndex('users', 'email', { ifExists: true });
 
@@ -509,7 +496,6 @@ export const down = (pgm) => {
   pgm.dropType('document_type', { ifExists: true });
   pgm.dropType('user_status_enum', { ifExists: true });
   pgm.dropType('gender_enum', { ifExists: true });
-  pgm.dropType('user_role', { ifExists: true });
   pgm.dropType('week_day', { ifExists: true });
   pgm.dropType('time_type', { ifExists: true });
   pgm.dropType('driver_type', { ifExists: true });

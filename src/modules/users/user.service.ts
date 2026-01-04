@@ -3,8 +3,8 @@ import { User } from '../users/user.model';
 import { UserStatus } from '../../enums/user.enums';
 
 export const UserService = {
-  async getUsers(page: number = 1, limit: number = 10, search?: string, role?: string) {
-    return await UserRepository.findAllWithFilters(page, limit, search, role);
+  async getUsers(page: number = 1, limit: number = 10, search?: string) {
+    return await UserRepository.findAllWithFilters(page, limit, search);
   },
 
   async getUserById(id: string) {
@@ -73,5 +73,17 @@ export const UserService = {
       throw { statusCode: 404, message: 'User not found' };
     }
     return user;
+  },
+
+  async enableUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
+  async searchUsers(query: string, page: number = 1, limit: number = 10) {
+    return await UserRepository.searchUsers(query, page, limit);
   },
 };
