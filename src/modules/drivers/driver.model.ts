@@ -104,21 +104,22 @@ export interface Driver {
   availability: Availability;
   kyc: KYC;
   credit: Credit;
-  recharges: Recharge[];
-  creditUsage: CreditUsage[];
+  // recharges: Recharge[];
+  // creditUsage: CreditUsage[];
   createdAt: string;
   updatedAt: string;
   vehicle: Vehicle | null;
   documents: Document[];
   performance: Performance;
   payments: Payments;
-  activityLogs: ActivityLog[];
+  // activityLogs: ActivityLog[];
 }
 
 export interface CreateDriverInput {
   fullName: string;
   phoneNumber: string;
   email: string;
+  password?: string;
   profilePicUrl?: string;
   dob: string;
   gender: 'male' | 'female' | 'other';
@@ -136,6 +137,7 @@ export interface CreateDriverInput {
 
 export interface UpdateDriverInput extends Partial<Omit<CreateDriverInput, 'vehicle' | 'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'>> {
   driverId?: string;
+  password?: string;
   vehicle?: Partial<Vehicle>;
   documents?: Partial<Document>[];
   kyc?: Partial<KYC>;

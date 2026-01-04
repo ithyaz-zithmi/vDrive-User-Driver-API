@@ -1,13 +1,30 @@
 // src/modules/drivers/driver.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { DriverService } from './driver.service';
+import { DriverDocumentsService } from './driver-documents.service';
 import { successResponse } from '../../shared/errorHandler';
 
 export const DriverController = {
   async addDriver(req: Request, res: Response, next: NextFunction) {
     try {
-      const driver = await DriverService.createDriver(req.body);
-      return successResponse(res, 201, 'Driver created successfully', driver);
+      const { documents, ...driverData } = req.body;
+      const driver = await DriverService.createDriver(driverData);
+
+      if (documents && Array.isArray(documents)) {
+        for (const doc of documents) {
+          await DriverDocumentsService.uploadDocument(driver.driverId, doc.documentType, {
+            document_url: doc.documentUrl,
+            metadata: {
+              document_number: doc.documentNumber,
+              license_status: doc.licenseStatus,
+              expiry_date: doc.expiryDate,
+            }
+          });
+        }
+      }
+
+      const updatedDriver = await DriverService.getDriverById(driver.driverId);
+      return successResponse(res, 201, 'Driver created successfully', updatedDriver);
     } catch (err) {
       next(err);
     }
@@ -15,8 +32,24 @@ export const DriverController = {
 
   async updateDriver(req: Request, res: Response, next: NextFunction) {
     try {
-      const driver = await DriverService.updateDriver(req.params.id, req.body);
-      return successResponse(res, 200, 'Driver updated successfully', driver);
+      const { documents, ...driverData } = req.body;
+      const driver = await DriverService.updateDriver(req.params.id, driverData);
+
+      if (documents && Array.isArray(documents)) {
+        for (const doc of documents) {
+          await DriverDocumentsService.uploadDocument(req.params.id, doc.documentType, {
+            document_url: doc.documentUrl,
+            metadata: {
+              document_number: doc.documentNumber,
+              license_status: doc.licenseStatus,
+              expiry_date: doc.expiryDate,
+            }
+          });
+        }
+      }
+
+      const updatedDriver = await DriverService.getDriverById(req.params.id);
+      return successResponse(res, 200, 'Driver updated successfully', updatedDriver);
     } catch (err) {
       next(err);
     }

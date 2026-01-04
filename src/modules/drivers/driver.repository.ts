@@ -1,23 +1,26 @@
-// src/modules/drivers/driver.repository.ts
 import { query } from '../../shared/database';
 import { Driver, CreateDriverInput, UpdateDriverInput, Vehicle, Document, KYC, Credit, Availability, Performance, Payments } from './driver.model';
+import { AuthService } from '../auth/auth.service';
 
 export const DriverRepository = {
   async create(driverData: CreateDriverInput): Promise<Driver> {
     const client = await query('BEGIN');
 
     try {
+      const passwordHash = driverData.password ? await AuthService.hashPassword(driverData.password) : null;
+
       // Insert driver
       const driverResult = await query(
         `INSERT INTO drivers (
-          full_name, phone_number, email, profile_pic_url, dob, gender, 
+          full_name, phone_number, email, password, profile_pic_url, dob, gender, 
           address, role, status, kyc, credit, availability, performance, payments
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING *`,
         [
           driverData.fullName,
           driverData.phoneNumber,
           driverData.email,
+          passwordHash,
           driverData.profilePicUrl || null,
           driverData.dob,
           driverData.gender,
@@ -59,28 +62,9 @@ export const DriverRepository = {
         vehicle = vehicleResult.rows[0];
       }
 
-      // Insert documents if provided
-      const documents = [];
-      if (driverData.documents && driverData.documents.length > 0) {
-        for (const doc of driverData.documents) {
-          const docResult = await query(
-            `INSERT INTO driver_documents (
-              driver_id, document_type, document_number, document_url, 
-              license_status, expiry_date
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *`,
-            [
-              driverId,
-              doc.documentType,
-              doc.documentNumber,
-              doc.documentUrl,
-              doc.licenseStatus || null,
-              doc.expiryDate || null,
-            ]
-          );
-          documents.push(docResult.rows[0]);
-        }
-      }
+      const documents: any[] = [];
+      // Documents and vehicles should be handled by their respective services
+      // as part of the refactoring to separate concerns and use the driver_documents table.
 
       await query('COMMIT');
 
@@ -104,6 +88,10 @@ export const DriverRepository = {
       if (driverData.fullName) { driverFields.push(`full_name = $${paramCount++}`); driverValues.push(driverData.fullName); }
       if (driverData.phoneNumber) { driverFields.push(`phone_number = $${paramCount++}`); driverValues.push(driverData.phoneNumber); }
       if (driverData.email) { driverFields.push(`email = $${paramCount++}`); driverValues.push(driverData.email); }
+      if (driverData.password) { 
+        driverFields.push(`password = $${paramCount++}`); 
+        driverValues.push(await AuthService.hashPassword(driverData.password)); 
+      }
       if (driverData.profilePicUrl) { driverFields.push(`profile_pic_url = $${paramCount++}`); driverValues.push(driverData.profilePicUrl); }
       if (driverData.dob) { driverFields.push(`dob = $${paramCount++}`); driverValues.push(driverData.dob); }
       if (driverData.gender) { driverFields.push(`gender = $${paramCount++}`); driverValues.push(driverData.gender); }
@@ -175,67 +163,7 @@ export const DriverRepository = {
         }
       }
 
-      // Update documents if provided
-      if (driverData.documents && driverData.documents.length > 0) {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-        for (const doc of driverData.documents) {
-          let docIdToUpdate = null;
-
-          // 1. If valid UUID provided, try to use it
-          if (doc.documentId && uuidRegex.test(doc.documentId)) {
-            docIdToUpdate = doc.documentId;
-          } 
-          // 2. If no valid UUID, try to find existing document by type
-          else if (doc.documentType) {
-            const existingDocResult = await query(
-              'SELECT id FROM driver_documents WHERE driver_id = $1 AND document_type = $2',
-              [id, doc.documentType]
-            );
-            if (existingDocResult.rows.length > 0) {
-              docIdToUpdate = existingDocResult.rows[0].id;
-            }
-          }
-
-          if (docIdToUpdate) {
-            // Update existing document
-            const docFields: string[] = [];
-            const docValues: any[] = [];
-            let dParamCount = 1;
-
-            if (doc.documentType) { docFields.push(`document_type = $${dParamCount++}`); docValues.push(doc.documentType); }
-            if (doc.documentNumber) { docFields.push(`document_number = $${dParamCount++}`); docValues.push(doc.documentNumber); }
-            if (doc.documentUrl) { docFields.push(`document_url = $${dParamCount++}`); docValues.push(doc.documentUrl); }
-            if (doc.licenseStatus !== undefined) { docFields.push(`license_status = $${dParamCount++}`); docValues.push(doc.licenseStatus === '' ? null : doc.licenseStatus); }
-            if (doc.expiryDate !== undefined) { docFields.push(`expiry_date = $${dParamCount++}`); docValues.push(doc.expiryDate === '' ? null : doc.expiryDate); }
-
-            if (docFields.length > 0) {
-              docValues.push(docIdToUpdate);
-              docValues.push(id); // Ensure document belongs to driver
-              await query(
-                `UPDATE driver_documents SET ${docFields.join(', ')} WHERE id = $${dParamCount} AND driver_id = $${dParamCount + 1}`,
-                docValues
-              );
-            }
-          } else {
-            // Create new document
-            await query(
-              `INSERT INTO driver_documents (
-                driver_id, document_type, document_number, document_url, 
-                license_status, expiry_date
-              ) VALUES ($1, $2, $3, $4, $5, $6)`,
-              [
-                id,
-                doc.documentType,
-                doc.documentNumber,
-                doc.documentUrl,
-                doc.licenseStatus || null,
-                doc.expiryDate || null,
-              ]
-            );
-          }
-        }
-      }
+      // Documents should be handled by DriverDocumentsService as part of the refactor.
 
       await query('COMMIT');
       return this.findById(id);
@@ -261,27 +189,27 @@ export const DriverRepository = {
     const documents = documentsResult.rows;
 
     // Get recharges
-    const rechargesResult = await query(
-      'SELECT * FROM driver_recharges WHERE driver_id = $1 ORDER BY created_at DESC',
-      [id]
-    );
-    const recharges = rechargesResult.rows;
+    // const rechargesResult = await query(
+    //   'SELECT * FROM driver_recharges WHERE driver_id = $1 ORDER BY created_at DESC',
+    //   [id]
+    // );
+    // const recharges = rechargesResult.rows;
 
     // Get credit usage
-    const creditUsageResult = await query(
-      'SELECT * FROM driver_credit_usage WHERE driver_id = $1 ORDER BY created_at DESC',
-      [id]
-    );
-    const creditUsage = creditUsageResult.rows;
+    // const creditUsageResult = await query(
+    //   'SELECT * FROM driver_credit_usage WHERE driver_id = $1 ORDER BY created_at DESC',
+    //   [id]
+    // );
+    // const creditUsage = creditUsageResult.rows;
 
     // Get activity logs
-    const activityLogsResult = await query(
-      'SELECT * FROM driver_activity_logs WHERE driver_id = $1 ORDER BY created_at DESC',
-      [id]
-    );
-    const activityLogs = activityLogsResult.rows;
+    // const activityLogsResult = await query(
+    //   'SELECT * FROM driver_activity_logs WHERE driver_id = $1 ORDER BY created_at DESC',
+    //   [id]
+    // );
+    // const activityLogs = activityLogsResult.rows;
 
-    return DriverRepository.mapToDriver(driver, vehicle, documents, recharges, creditUsage, activityLogs);
+    return DriverRepository.mapToDriver(driver, vehicle, documents, [], [], []);
   },
 
   async findAll(limit: number = 50, offset: number = 0): Promise<Driver[]> {
@@ -343,33 +271,36 @@ export const DriverRepository = {
       documents: documents.map((doc) => ({
         documentId: doc.id,
         documentType: doc.document_type,
-        documentNumber: doc.document_number,
+        documentNumber: doc.metadata?.document_number || '',
         documentUrl: doc.document_url,
-        licenseStatus: doc.license_status || '',
-        expiryDate: doc.expiry_date,
+        licenseStatus: doc.metadata?.license_status || '',
+        expiryDate: doc.metadata?.expiry_date || '',
       })),
-      recharges: recharges.map((r) => ({
-        transactionId: r.id,
-        amount: parseFloat(r.amount),
-        paymentMethod: r.payment_method,
-        reference: r.reference || '',
-        status: r.status,
-        createdAt: r.created_at,
-      })),
-      creditUsage: creditUsage.map((cu) => ({
-        usageId: cu.id,
-        tripId: cu.trip_id || '',
-        amount: parseFloat(cu.amount),
-        type: cu.type,
-        description: cu.description || '',
-        createdAt: cu.created_at,
-      })),
-      activityLogs: activityLogs.map((log) => ({
-        logId: log.id,
-        action: log.action,
-        details: log.details || '',
-        createdAt: log.created_at,
-      })),
+      // recharges: recharges.map((r) => ({
+      //   transactionId: r.id,
+      //   amount: parseFloat(r.amount),
+      //   paymentMethod: r.payment_method,
+      //   reference: r.reference || '',
+      //   status: r.status,
+      //   createdAt: r.created_at,
+      // })),
+      // creditUsage: creditUsage.map((cu) => ({
+      //   usageId: cu.id,
+      //   tripId: cu.trip_id || '',
+      //   amount: parseFloat(cu.amount),
+      //   type: cu.type,
+      //   description: cu.description || '',
+      //   createdAt: cu.created_at,
+      // })),
+      // activityLogs: activityLogs.map((log) => ({
+      //   logId: log.id,
+      //   action: log.action,
+      //   details: log.details || '',
+      //   createdAt: log.created_at,
+      // })),
+      // recharges: [],
+      // creditUsage: [],
+      // activityLogs: [],
     };
   },
 };

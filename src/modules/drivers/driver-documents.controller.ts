@@ -15,12 +15,12 @@ export class DriverDocumentsController {
   static async uploadDocument(req: Request, res: Response): Promise<void> {
     try {
       const { driverId } = req.params;
-      const { documentType, documentUrl } = req.body;
+      const { documentType, documentUrl, ...metadata } = req.body;
 
       const document = await DriverDocumentsService.uploadDocument(
         driverId,
         documentType,
-        documentUrl
+        { document_url: documentUrl, metadata }
       );
       res.status(201).json({ document });
     } catch (error) {
