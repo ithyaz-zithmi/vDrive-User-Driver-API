@@ -6,28 +6,20 @@ import driverDocumentsRoutes from '../drivers/driver-documents.routes';
 
 const router = Router();
 
-router.get('/customers', UserController.getCustomers);
+router.get('/', UserController.getUsers);
 
 router.get('/:id', validateParams(UserValidation.idValidation), UserController.getUserById);
 
-router.post(
-  '/create',
-  validateBody(UserValidation.createUserValidation),
-  UserController.createUser
-);
+router.post('/', validateBody(UserValidation.createUserValidation), UserController.createUser);
 
 router.patch(
-  '/update/:id',
+  '/:id',
   validateParams(UserValidation.idValidation),
   validateBody(UserValidation.updateUserValidation),
   UserController.updateUser
 );
 
-router.delete(
-  '/delete/:id',
-  validateParams(UserValidation.idValidation),
-  UserController.deleteUser
-);
+router.delete('/:id', validateParams(UserValidation.idValidation), UserController.deleteUser);
 
 router.patch('/block/:id', validateParams(UserValidation.idValidation), UserController.blockUser);
 
@@ -42,6 +34,10 @@ router.patch(
   validateParams(UserValidation.idValidation),
   UserController.disableUser
 );
+
+router.patch('/enable/:id', validateParams(UserValidation.idValidation), UserController.enableUser);
+
+router.get('/search', validateQuery(UserValidation.searchValidation), UserController.searchUsers);
 
 // Driver documents routes
 router.use('/documents', driverDocumentsRoutes);

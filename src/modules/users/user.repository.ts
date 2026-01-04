@@ -6,8 +6,7 @@ export const UserRepository = {
   async findAllWithFilters(
     page: number,
     limit: number,
-    search?: string,
-    role?: string
+    search?: string
   ): Promise<{ users: User[]; total: number }> {
     const offset = (page - 1) * limit;
     let whereClause = "WHERE status <> 'deleted'";
@@ -18,12 +17,6 @@ export const UserRepository = {
       whereClause += ` AND (full_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex + 1})`;
       params.push(`%${search}%`, `%${search}%`);
       paramIndex += 2;
-    }
-
-    if (role) {
-      whereClause += ` AND role = $${paramIndex}`;
-      params.push(role);
-      paramIndex += 1;
     }
 
     // Get total count
@@ -46,14 +39,13 @@ export const UserRepository = {
 
   async createUser(data: User): Promise<User | null> {
     const result = await query(
-      `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, role, gender, date_of_birth, status, email, device_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()) RETURNING *;`,
+      `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, gender, date_of_birth, status, email, device_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) RETURNING *;`,
       [
         data.first_name,
         data.last_name,
         data.full_name,
         data.phone_number,
         data.alternate_contact,
-        data.role,
         data.gender,
         data.date_of_birth,
         data.status,
@@ -90,5 +82,26 @@ export const UserRepository = {
     );
 
     return result.rows[0] || null;
+  },
+
+  async searchUsers(
+    searchTerm: string,
+    page: number,
+    limit: number
+  ): Promise<{ users: User[]; total: number }> {
+    const offset = (page - 1) * limit;
+    const searchQuery = `%${searchTerm}%`;
+    const params = [searchQuery, searchQuery, limit, offset];
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM users WHERE status <> 'deleted' AND (full_name ILIKE $1 OR email ILIKE $2 OR phone_number ILIKE $1)`;
+    const countResult = await query(countQuery, [searchQuery, searchQuery]);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated results
+    const selectQuery = `SELECT * FROM users WHERE status <> 'deleted' AND (full_name ILIKE $1 OR email ILIKE $2 OR phone_number ILIKE $1) ORDER BY created_at DESC LIMIT $3 OFFSET $4`;
+    const result = await query(selectQuery, params);
+
+    return { users: result.rows, total };
   },
 };
