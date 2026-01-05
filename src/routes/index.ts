@@ -5,6 +5,7 @@ import authRoutes from '../modules/auth/auth.routes';
 import s3Routes from '../modules/s3/s3.routes';
 import { isAuthenticatedOrService } from '../shared/serviceAuthentication';
 import tripRoutes from '../modules/trip/trip.routes';
+import deductionRoutes from '../modules/deductions/deduction.routes';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/users', userRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/generate-presigned-url', s3Routes);
 router.use('/trip', tripRoutes);
+router.use('/deductions', deductionRoutes);
 
 export default router;
