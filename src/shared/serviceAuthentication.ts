@@ -34,6 +34,9 @@ const isServiceAuthenticated = (req: Request, res: Response, next: NextFunction)
       });
     }
 
+    // Extract admin ID for service-authenticated requests
+    (req as any).adminId = req.headers['x-admin-id'] as string;
+
     next();
   } catch (err: any) {
     return res.status(500).json({
