@@ -54,6 +54,7 @@ export const UserController = {
         gender: req.body.gender || '',
         email: req.body.email || '',
         device_id: req.body.device_id || '',
+        created_by: (req as any).adminId,
       };
 
       const user = await UserService.createUser(body);
@@ -88,6 +89,7 @@ export const UserController = {
         status: rest.status,
         gender: rest.gender,
         email: rest.email,
+        updated_by: (req as any).adminId,
       };
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);

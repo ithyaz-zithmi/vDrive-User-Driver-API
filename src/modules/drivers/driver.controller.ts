@@ -6,7 +6,11 @@ import { successResponse } from '../../shared/errorHandler';
 export const DriverController = {
   async addDriver(req: Request, res: Response, next: NextFunction) {
     try {
-      const driver = await DriverService.createDriver(req.body);
+      const driverData = {
+        ...req.body,
+        createdBy: (req as any).adminId,
+      };
+      const driver = await DriverService.createDriver(driverData);
       return successResponse(res, 201, 'Driver created successfully', driver);
     } catch (err) {
       next(err);
@@ -15,7 +19,11 @@ export const DriverController = {
 
   async updateDriver(req: Request, res: Response, next: NextFunction) {
     try {
-      const driver = await DriverService.updateDriver(req.params.id, req.body);
+      const driverData = {
+        ...req.body,
+        updatedBy: (req as any).adminId,
+      };
+      const driver = await DriverService.updateDriver(req.params.id, driverData);
       return successResponse(res, 200, 'Driver updated successfully', driver);
     } catch (err) {
       next(err);

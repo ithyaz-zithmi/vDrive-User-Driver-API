@@ -106,6 +106,8 @@ export interface Driver {
   credit: Credit;
   recharges: Recharge[];
   creditUsage: CreditUsage[];
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
   vehicle: Vehicle | null;
@@ -134,7 +136,13 @@ export interface CreateDriverInput {
   payments?: Payments;
 }
 
-export interface UpdateDriverInput extends Partial<Omit<CreateDriverInput, 'vehicle' | 'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'>> {
+export interface UpdateDriverInput
+  extends Partial<
+    Omit<
+      CreateDriverInput,
+      'vehicle' | 'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'
+    >
+  > {
   driverId?: string;
   vehicle?: Partial<Vehicle>;
   documents?: Partial<Document>[];

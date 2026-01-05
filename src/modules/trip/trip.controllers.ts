@@ -31,7 +31,11 @@ export const TripController = {
 
   async createTrip(req: Request, res: Response, next: NextFunction) {
     try {
-      const trip = await TripService.createTrip(req.body);
+      const tripData = {
+        ...req.body,
+        created_by: (req as any).adminId,
+      };
+      const trip = await TripService.createTrip(tripData);
       return successResponse(res, 201, 'Trip created successfully', trip);
     } catch (err: any) {
       logger.error(`createTrip error: ${err.message}`);
@@ -63,6 +67,7 @@ export const TripController = {
         rating: req.body.rating,
         feedback: req.body.feedback,
         re_route_id: req.body.re_route_id,
+        updated_by: (req as any).adminId,
       };
 
       const updateData = cleanUndefined(updateTripData);

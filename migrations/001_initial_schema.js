@@ -147,6 +147,8 @@ export const up = (pgm) => {
       device_id: { type: 'varchar(100)', unique: true },
       deleted_at: { type: 'timestamp with time zone' },
       is_deleted: { type: 'boolean', default: false, notNull: true },
+      created_by: { type: 'uuid', references: 'admin_users(id)', onDelete: 'SET NULL' },
+      updated_by: { type: 'uuid', references: 'admin_users(id)', onDelete: 'SET NULL' },
       created_at: {
         type: 'timestamp with time zone',
         default: pgm.func('CURRENT_TIMESTAMP'),
@@ -197,6 +199,8 @@ export const up = (pgm) => {
       reset_token_expiry: { type: 'timestamp with time zone' },
       deleted_at: { type: 'timestamp with time zone' },
       is_deleted: { type: 'boolean', default: false },
+      created_by: { type: 'uuid', references: 'admin_users(id)', onDelete: 'SET NULL' },
+      updated_by: { type: 'uuid', references: 'admin_users(id)', onDelete: 'SET NULL' },
       created_at: {
         type: 'timestamp with time zone',
         default: pgm.func('CURRENT_TIMESTAMP'),
@@ -390,6 +394,8 @@ export const up = (pgm) => {
       assigned_at: { type: 'timestamp' },
       started_at: { type: 'timestamp' },
       ended_at: { type: 'timestamp' },
+      created_by: { type: 'uuid', references: 'admin_users(id)', onDelete: 'SET NULL' },
+      updated_by: { type: 'uuid', references: 'admin_users(id)', onDelete: 'SET NULL' },
       created_at: { type: 'timestamp', notNull: true, default: pgm.func('NOW()') },
       updated_at: { type: 'timestamp', notNull: true, default: pgm.func('NOW()') },
     },

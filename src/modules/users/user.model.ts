@@ -11,6 +11,8 @@ export interface User {
   status: UserStatus;
   email?: string;
   device_id: string;
+  created_by?: string;
+  updated_by?: string;
   created_at?: Date;
   updated_at?: Date;
 }
