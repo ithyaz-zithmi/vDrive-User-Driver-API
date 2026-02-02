@@ -45,9 +45,12 @@ export const TripController = {
 
       const updateTripData: Partial<Trip> = {
         driver_id: req.body.driver_id,
+        ride_type:req.body?.ride_type,
         vehicle_id: req.body.vehicle_id,
         trip_status: req.body.trip_status,
-        scheduled_start_time: req.body.scheduled_start_time,
+        scheduled_start_time: req.body?.scheduled_start_time,
+        pickup_address:req.body?.pickup_address,
+        drop_address:req.body?.drop_address,
         actual_pickup_time: req.body.actual_pickup_time,
         actual_drop_time: req.body.actual_drop_time,
         trip_duration_minutes: req.body.trip_duration_minutes,

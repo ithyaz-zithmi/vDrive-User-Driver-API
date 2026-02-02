@@ -23,12 +23,17 @@ export const UserValidation = {
     first_name: commonSchema.firstNameRule.optional(),
     last_name: commonSchema.lastNameRule.optional(),
     phone_number: commonSchema.phoneNumberRule.optional(),
+    profile_url:commonSchema.ProfileUrl.optional(),
     alternate_contact: commonSchema.alternateContactRule.optional(),
     role: commonSchema.roleRule.optional(),
     gender: commonSchema.genderRule.optional(),
     date_of_birth: commonSchema.dateOfBirthRule.optional(),
     status: commonSchema.statusRule.optional(),
     email: commonSchema.emailRule.optional(),
+    device_id: commonSchema.deviceIdRule.optional(),
+    favourite_places:commonSchema.updateFavoritesSchema.optional(),
+    emergency_contacts:commonSchema.emergencyContactSchema.optional(),
+    settings_preferences:commonSchema.settingsPreferenceSchema.optional()
   })
     .min(1)
     .messages({

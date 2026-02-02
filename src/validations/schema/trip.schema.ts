@@ -2,6 +2,7 @@ import { Joi } from 'celebrate';
 import {
   RideType,
   ServiceType,
+  BookingType,
   TripStatus,
   PaymentStatus,
   CancelReason,
@@ -53,6 +54,13 @@ export const serviceTypeRule = enumString(Object.values(ServiceType))
     'string.base': 'service_type must be a string',
   });
 
+export const bookingTypeRule = enumString(Object.values(BookingType))
+  .required()
+  .messages({
+    'any.only': `service_type must be one of [${Object.values(BookingType).join(', ')}]`,
+    'any.required': 'service_type is required',
+    'string.base': 'service_type must be a string',
+  })
 export const tripStatusRule = enumString(Object.values(TripStatus))
   .required()
   .messages({
@@ -230,3 +238,21 @@ export const newValueRule = Joi.object().unknown(true).required().messages({
   'any.required': 'new_value is required',
   'object.base': 'new_value must be a valid JSON object',
 });
+export const is_for_self = Joi.boolean().required().messages({
+  'any.required': 'is_for_self is required',
+  'boolean.base': 'is_for_self must be a true or false value',
+});
+
+// Validator for the passenger details object
+export const passenger_details = Joi.object({
+  name: Joi.string().required(),
+  phone: Joi.string().min(10).max(15).required(),
+})
+  .allow(null) // Allows null when is_for_self is true
+  .when('is_for_self', {
+    is: false,
+    then: Joi.object().required().messages({
+      'any.required': 'Passenger details are required when booking for someone else',
+    }),
+    otherwise: Joi.optional(),
+  });

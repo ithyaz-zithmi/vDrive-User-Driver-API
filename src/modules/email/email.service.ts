@@ -1,4 +1,5 @@
 
+import { SendMailOptions } from 'nodemailer';
 import { EmailRepository } from './email.repository';
 import { Attachment } from 'nodemailer/lib/mailer';
 
@@ -29,8 +30,12 @@ export const EmailService = {
         };
 
         // 3. Define the mail options
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
+        const mailOptions: SendMailOptions = {
+            from: `"VDrive" <${process.env.EMAIL_USER}>`,
+            // from: {
+            //     name: 'VDrive',
+            //     address: process.env.EMAIL_USER || 'no-reply@vdrive.com'
+            // },
             to: recipient,
             subject: subject,
             html: `
