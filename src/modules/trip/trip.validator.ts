@@ -9,10 +9,15 @@ export const TripValidation = {
 
   createTripValidation: Joi.object().keys({
     user_id: tripSchema.userIdRule,
+    driver_id: tripSchema.driverIdRule.optional(),
     ride_type: tripSchema.rideTypeRule,
     service_type: tripSchema.serviceTypeRule,
+    booking_type: tripSchema.bookingTypeRule,
+    is_for_self:tripSchema.is_for_self,
+    passenger_details:tripSchema.passenger_details,
     trip_status: tripSchema.tripStatusRule,
     original_scheduled_start_time: tripSchema.originalScheduledStartTimeRule,
+    scheduled_start_time: tripSchema.scheduledStartTimeRule,
     pickup_lat: tripSchema.pickupLatRule,
     pickup_lng: tripSchema.pickupLngRule,
     pickup_address: tripSchema.pickupAddressRule,
@@ -22,16 +27,20 @@ export const TripValidation = {
     distance_km: tripSchema.distanceKmRule,
     base_fare: tripSchema.baseFareRule,
     platform_fee: tripSchema.platformFeeRule,
+    driver_allowance:tripSchema.driverAllowanceRule.optional(),
     total_fare: tripSchema.totalFareRule,
     payment_status: tripSchema.paymentStatusRule,
   }),
 
   updateTripValidation: Joi.object()
     .keys({
-      driver_id: tripSchema.driverIdRule,
-      vehicle_id: tripSchema.vehicleIdRule,
+      driver_id: tripSchema.driverIdRule.optional(),
+      ride_type: tripSchema.rideTypeRule,
+      vehicle_id: tripSchema.vehicleIdRule.optional(),
       trip_status: tripSchema.tripStatusRule.optional(),
       scheduled_start_time: tripSchema.scheduledStartTimeRule,
+       pickup_address: tripSchema.pickupAddressRule,
+       drop_address: tripSchema.dropAddressRule,
       actual_pickup_time: tripSchema.actualPickupTimeRule,
       actual_drop_time: tripSchema.actualDropTimeRule,
       trip_duration_minutes: tripSchema.tripDurationMinutesRule,

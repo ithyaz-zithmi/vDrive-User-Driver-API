@@ -84,12 +84,16 @@ export const UserController = {
         first_name,
         last_name,
         phone_number: rest.phone_number,
+        device_id:rest.device_id,
         alternate_contact: rest.alternate_number,
         date_of_birth: rest.date_of_birth,
         status: rest.status,
         gender: rest.gender,
         email: rest.email,
-        updated_by: (req as any).adminId,
+        favourite_places:rest.favourite_places,
+        emergency_contacts: rest.emergency_contacts,
+        settings_preferences: rest.settings_preferences,
+        profile_url:rest.profile_url || ''
       };
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);

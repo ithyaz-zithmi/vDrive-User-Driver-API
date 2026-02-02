@@ -38,23 +38,30 @@ export const UserRepository = {
   },
 
   async createUser(data: User): Promise<User | null> {
-    const result = await query(
-      `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, gender, date_of_birth, status, email, device_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) RETURNING *;`,
-      [
-        data.first_name,
-        data.last_name,
-        data.full_name,
-        data.phone_number,
-        data.alternate_contact,
-        data.gender,
-        data.date_of_birth,
-        data.status,
-        data.email,
-        data.device_id,
-      ]
-    );
 
-    return result.rows[0] || null;
+    try {
+      
+      const result = await query(
+        `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, role, gender, date_of_birth, status, email, device_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()) RETURNING *;`,
+        [
+          data.first_name,
+          data.last_name,
+          data.full_name,
+          data.phone_number,
+          data.alternate_contact,
+          data.role,
+          data.gender,
+          data.date_of_birth,
+          data.status,
+          data.email,
+          data.device_id,
+        ]
+      );
+       return result.rows[0] || null;
+    } catch (error) {
+       throw error;
+    }
+
   },
 
   async updateUser(id: string, setQuery: string, values: any[]): Promise<User | null> {

@@ -35,6 +35,9 @@ export const AuthController = {
 
       successResponse(res, 200, 'OTP sent successfully', {
         expiresIn: result.expiresIn,
+        otp:result.otp,
+        exists: result.userexists,
+        userName: result.userData
       });
     } catch (error: any) {
       logger.warn(`OTP send failed for ${phone_number || 'unknown'}: ${error.detail}`);
@@ -62,7 +65,7 @@ export const AuthController = {
 
       logger.info(`OTP sent successfully to: ${phone_number}`);
 
-      successResponse(res, 200, 'OTP sent successfully', {
+      successResponse(res, 200, 'OTP Verified successfully', {
         ...result,
       });
     } catch (error: any) {

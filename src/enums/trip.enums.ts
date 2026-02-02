@@ -59,3 +59,8 @@ export enum ChangeBy {
   ADMIN = 'ADMIN',
   SYSTEM = 'SYSTEM',
 }
+
+export enum BookingType {
+  LIVE = 'LIVE',
+  SCHEDULED = 'SCHEDULED'
+}

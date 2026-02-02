@@ -46,12 +46,10 @@ export const lastNameRule = Joi.string()
   .min(1)
   .max(30)
   .pattern(/^[a-zA-Z0-9\s]+$/)
-  .required()
-  .messages({
-    'string.pattern.base': 'Last Name can contain letters, numbers, and spaces only',
-    'string.empty': 'Last Name cannot be empty',
-    'any.required': 'Last Name is required.',
-  });
+  .allow('', null)
+  .optional();
+
+
 
 export const genderRule = enumString(Object.values(Gender)).allow('', null).optional().messages({
   'string.base': 'Gender must be a string',
@@ -72,7 +70,8 @@ export const alternateContactRule = Joi.string()
 
 export const dateOfBirthRule = Joi.string()
   .trim()
-  .pattern(/^(0?[1-9]|[12][0-9]|3[01])[-](0?[1-9]|1[012])[-]\d{4}$/)
+  // .pattern(/^(0?[1-9]|[12][0-9]|3[01])[-](0?[1-9]|1[012])[-]\d{4}$/)
+  .pattern(/^\d{4}[-](0?[1-9]|1[012])[-](0?[1-9]|[12][0-9]|3[01])$/)
   .allow('', null)
   .optional()
   .messages({
@@ -103,4 +102,63 @@ export const deviceIdRule = Joi.string().min(16).max(64).messages({
   'string.min': 'Device ID must be at least 16 characters long',
   'string.max': 'Device ID cannot exceed 64 characters',
   'any.required': 'Device ID is required',
+});
+
+
+const favoritePlaceSchema = Joi.object({
+  id: Joi.string().required().messages({
+    'any.required': 'Place ID is required',
+  }),
+  name: Joi.string().required().messages({
+    'any.required': 'Location name is required',
+  }),
+  showname: Joi.string().optional().messages({
+    'any.required': 'showname name is required',
+  }),
+  address: Joi.string().required(),
+  lat: Joi.number().min(-90).max(90).required(),
+  lng: Joi.number().min(-180).max(180).required(),
+});
+
+export const updateFavoritesSchema = Joi.array()
+  .items(favoritePlaceSchema)
+  .max(10)
+  .optional()
+  .messages({
+    'array.max': 'You can only have up to 10 favorite places',
+    'array.base': 'favourite_places must be an array',
+  });
+
+
+export const emergencyContactObject = Joi.object({
+  name: Joi.string().required(),
+  phone: Joi.string().regex(/^[0-9+]{10,15}$/).required(),
+});
+
+export const emergencyContactSchema = Joi.array()
+  .items(emergencyContactObject)
+  .max(3)
+  .optional()
+  .messages({
+    'array.max': 'You can only have up to 3 Emergency Contacts',
+    'array.base': 'emergency_contacts must be an array',
+  });
+
+export const settingsPreferenceSchema = Joi.object({
+  invoice_email: Joi.boolean().required(),
+  promo_email: Joi.boolean().required(),
+  whatsapp_updates: Joi.boolean().required(),
+  push_notifications: Joi.boolean().required(),
+  sms_alerts: Joi.boolean().required(),
+})
+  .required()
+  .unknown(false)
+  .messages({
+    'object.base': 'settings_preferences must be an object',
+    'any.required': 'All permission toggles are required for a full update'
+  });
+
+export const ProfileUrl = Joi.string().messages({
+  'string.base': 'ProfileUrl must be a string',
+  'string.empty': 'ProfileUrl cannot be empty',
 });

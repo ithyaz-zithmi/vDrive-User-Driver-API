@@ -52,7 +52,7 @@ export const AuthService = {
     role: string;
     device_id: string;
     allow_new_device: boolean;
-  }): Promise<{ expiresIn: number }> {
+  }): Promise<{ expiresIn: number ,userexists : boolean ,userData : any ,otp:any}> {
     const TTL = config.auth.otpExpiryTime;
     const MaxAttempt = config.auth.maxAttempts;
 
@@ -79,7 +79,7 @@ export const AuthService = {
       }
 
       // Generate otp and hash it
-      const otp = AuthService.genNumericOTP(6);
+      const otp = AuthService.genNumericOTP(4);
       const otpHash = await AuthService.hashValue(otp);
 
       console.log(`otp for ${phone_number} is ${otp}`);
@@ -88,7 +88,7 @@ export const AuthService = {
       // Save otp hash
       await AuthRepository.saveHashedOtp(phone_number, role, otpHash, expires_at, attempt_count);
 
-      return { expiresIn: TTL };
+      return { expiresIn: TTL , userexists : isExistingUser ,userData : userData?.full_name , otp:otp};
     } catch (err) {
       throw {
         statusCode: 500,

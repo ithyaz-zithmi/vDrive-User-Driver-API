@@ -8,7 +8,7 @@ export const TripService = {
   },
 
   async getTripById(id: string) {
-    const user = await TripRepository.findById(id);
+    const user = await TripRepository.findByUserId(id);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }

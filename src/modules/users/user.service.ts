@@ -33,7 +33,9 @@ export const UserService = {
 
     const setQuery = fields.map((field, index) => `"${field}" = $${index + 1}`).join(', ');
 
-    const values = Object.values(data);
+    const values = Object.values(data).map(value => 
+        (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value
+    );    
     const user = await UserRepository.updateUser(id, setQuery, values);
 
     if (!user) {

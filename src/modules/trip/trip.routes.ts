@@ -16,7 +16,7 @@ router.post(
 );
 
 router.post(
-  'change/create',
+  '/change/create',
   validateBody(TripValidation.createTripChangesValidation),
   TripController.createTripChanges
 );
