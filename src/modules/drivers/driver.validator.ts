@@ -51,11 +51,12 @@ const updateDocumentSchema = Joi.object({
 
 export const createDriverValidator = celebrate({
   [Segments.BODY]: Joi.object().keys({
-    fullName: Joi.string().required(),
-    phoneNumber: Joi.string().required(),
+    first_name:Joi.string().required(),
+    last_name: Joi.string().required(),
+    phone_number: Joi.string().required(),
     email: Joi.string().email().required(),
     profilePicUrl: Joi.string().uri().optional(),
-    dob: Joi.string().isoDate().required(),
+    date_of_birth: Joi.string().isoDate().required(),
     gender: Joi.string().valid('male', 'female', 'other').required(),
     address: addressSchema.required(),
     role: Joi.string().required(),
@@ -82,13 +83,15 @@ export const updateDriverValidator = celebrate({
   [Segments.PARAMS]: Joi.object().keys({
     id: Joi.string().uuid().required(),
   }),
+  
   [Segments.BODY]: Joi.object().keys({
     driverId: Joi.string().optional(),
-    fullName: Joi.string().optional(),
-    phoneNumber: Joi.string().optional(),
+    first_name: Joi.string().optional(),
+    last_name: Joi.string().optional(),
+    phone_number: Joi.string().optional(),
     email: Joi.string().email().optional(),
     profilePicUrl: Joi.string().uri().optional(),
-    dob: Joi.string().isoDate().optional(),
+    date_of_birth: Joi.string().isoDate().optional(),
     gender: Joi.string().valid('male', 'female', 'other').optional(),
     address: addressSchema.optional(),
     role: Joi.string().optional(),

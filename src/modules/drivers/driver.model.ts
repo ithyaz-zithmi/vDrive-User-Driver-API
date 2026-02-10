@@ -89,52 +89,66 @@ export interface ActivityLog {
 }
 
 export interface Driver {
-  driverId: string;
-  fullName: string;
-  phoneNumber: string;
+  driverId?: string;
+  device_id?: string;
+  first_name: string;
+  last_name: string;
+  full_name?: string;
+  phone_number: string;
+  alternate_contact?: string;
   email: string;
-  profilePicUrl: string;
-  dob: string;
+  profilePicUrl?: string;
+  date_of_birth: string;
   gender: 'male' | 'female' | 'other';
-  address: Address;
+  address?: Address;
   role: DriverRole;
   status: DriverStatus;
-  rating: number;
-  totalTrips: number;
-  availability: Availability;
-  kyc: KYC;
-  credit: Credit;
-  recharges: Recharge[];
-  creditUsage: CreditUsage[];
-  createdAt: string;
-  updatedAt: string;
-  vehicle: Vehicle | null;
-  documents: Document[];
-  performance: Performance;
-  payments: Payments;
-  activityLogs: ActivityLog[];
+  rating?: number;
+  total_trips?: number;
+  availability?: Availability;
+  kyc_status?: KYC;
+  credit?: Credit;
+  recharges?: Recharge[];
+  creditUsage?: CreditUsage[];
+  created_at?: string;
+  updated_at?: string;
+  vehicle?: Vehicle | null;
+  documents?: Document[];
+  performance?: Performance;
+  payments?: Payments;
+  activityLogs?: ActivityLog[];
+  last_active?:string;
 }
 
 export interface CreateDriverInput {
-  fullName: string;
-  phoneNumber: string;
+  device_id?: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  phone_number: string;
+  alternate_contact?: string;
   email: string;
   profilePicUrl?: string;
-  dob: string;
+  date_of_birth: string;
   gender: 'male' | 'female' | 'other';
   address: Address;
   role: DriverRole;
   status: DriverStatus;
   vehicle?: Omit<Vehicle, 'vehicleId'>;
   documents?: Omit<Document, 'documentId'>[];
-  kyc?: KYC;
+  kyc_status?: KYC;
   credit?: Credit;
   availability?: Availability;
   performance?: Performance;
   payments?: Payments;
 }
 
-export interface UpdateDriverInput extends Partial<Omit<CreateDriverInput, 'vehicle' | 'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'>> {
+export interface UpdateDriverInput extends Partial<
+  Omit<
+    CreateDriverInput,
+    'vehicle' | 'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'
+  >
+> {
   driverId?: string;
   vehicle?: Partial<Vehicle>;
   documents?: Partial<Document>[];

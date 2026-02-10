@@ -146,7 +146,7 @@ export const AuthService = {
         const userId = userData.id;
         if (!userId) return;
 
-        const updated = await AuthRepository.userDeviceIDUpdate(userId, device_id);
+        const updated = await AuthRepository.userDeviceIDUpdate(userId, device_id,role);
         if (updated) {
           logger.info(`Device ID "${device_id}" updated for User ID "${userId}"`);
         }

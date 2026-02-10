@@ -1,6 +1,8 @@
+import { Driver } from './../drivers/driver.model';
 import { query } from '../../shared/database';
 import { User } from '../users/user.model';
 import { OTP } from '../auth/otp.model';
+import { UserRole } from '../../enums/user.enums';
 
 export const AuthRepository = {
   async saveHashedOtp(
@@ -47,8 +49,26 @@ export const AuthRepository = {
   },
 
   async getUser(phone_number: string, role: string): Promise<User | null> {
+    if (role === 'driver') {
+      const result = await query(
+        `SELECT * FROM drivers WHERE phone_number = $1 AND role = $2 LIMIT 1`,
+        [phone_number, role]
+      );
+
+      return result?.rows[0];
+    } else {
+      const result = await query(
+        `SELECT * FROM users WHERE phone_number = $1 AND role = $2 LIMIT 1`,
+        [phone_number, role]
+      );
+
+      return result?.rows[0];
+    }
+  },
+
+  async getDriver(phone_number: string, role: string): Promise<User | null> {
     const result = await query(
-      `SELECT * FROM users WHERE phone_number = $1 AND role = $2 LIMIT 1`,
+      `SELECT * FROM drivers WHERE phone_number = $1 AND role = $2 LIMIT 1`,
       [phone_number, role]
     );
 
@@ -61,9 +81,18 @@ export const AuthRepository = {
     return (result?.rowCount ?? 0) > 0;
   },
 
-  async userDeviceIDUpdate(device_id: string, id: string): Promise<boolean> {
-    const result = await query(`UPDATE users SET device_id = $1 WHERE id = $2`, [device_id, id]);
+  async userDeviceIDUpdate(id: string, device_id: string, role: string): Promise<boolean> {
+    if (role === 'driver') {
+      const result = await query(`UPDATE drivers SET device_id = $1 WHERE id = $2`, [
+        device_id,
+        id,
+      ]);
 
-    return (result?.rowCount ?? 0) > 0;
+      return (result?.rowCount ?? 0) > 0;
+    } else {
+      const result = await query(`UPDATE users SET device_id = $1 WHERE id = $2`, [device_id, id]);
+
+      return (result?.rowCount ?? 0) > 0;
+    }
   },
 };

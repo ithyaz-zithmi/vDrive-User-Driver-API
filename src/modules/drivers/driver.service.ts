@@ -5,7 +5,7 @@ import { CreateDriverInput, UpdateDriverInput, Driver } from './driver.model';
 export const DriverService = {
   async createDriver(driverData: CreateDriverInput): Promise<Driver> {
     // Validate required fields
-    if (!driverData.fullName || !driverData.phoneNumber || !driverData.email) {
+    if (!driverData.full_name || !driverData.phone_number || !driverData.email) {
       throw { statusCode: 400, message: 'Missing required fields' };
     }
 
