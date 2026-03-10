@@ -7,6 +7,8 @@ import { isAuthenticatedOrService } from '../shared/serviceAuthentication';
 import emailRoutes from '../modules/email/email.routes';
 import isAuthenticated from '../shared/authentication';
 import tripRoutes from '../modules/trip/trip.routes';
+import paymentRoutes from '../modules/payments/payment.routes';
+import simulationRoutes from '../modules/simulation/simulation.routes';
 
 const router = Router();
 
@@ -18,12 +20,14 @@ router.get('/health-check', (req, res) => {
 
 router.use('/auth', authRoutes);
 router.use(isAuthenticatedOrService);
-router.use('/invoices',emailRoutes);
+router.use('/invoices', emailRoutes);
 router.use(isAuthenticated);
+router.use('/trips', tripRoutes);
 router.use('/users', userRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/generate-presigned-url', s3Routes);
-router.use('/trip', tripRoutes);
+router.use('/payment', paymentRoutes);
+router.use('/simulation', simulationRoutes);
 
 
 export default router;

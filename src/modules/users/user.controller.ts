@@ -5,6 +5,7 @@ import { User } from './user.model';
 import { UserStatus } from '../../enums/user.enums';
 import { logger } from '../../shared/logger';
 import { cleanUndefined, formFullName } from '../../utilities/helper';
+import { UserRepository } from './user.repository';
 
 export const UserController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
@@ -84,16 +85,16 @@ export const UserController = {
         first_name,
         last_name,
         phone_number: rest.phone_number,
-        device_id:rest.device_id,
+        device_id: rest.device_id,
         alternate_contact: rest.alternate_number,
         date_of_birth: rest.date_of_birth,
         status: rest.status,
         gender: rest.gender,
         email: rest.email,
-        favourite_places:rest.favourite_places,
+        favourite_places: rest.favourite_places,
         emergency_contacts: rest.emergency_contacts,
         settings_preferences: rest.settings_preferences,
-        profile_url:rest.profile_url || ''
+        profile_url: rest.profile_url || ''
       };
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);
@@ -180,4 +181,15 @@ export const UserController = {
       next(err);
     }
   },
+
+  async updateToken(req: Request, res: Response) {
+    const { fcmToken } = req.body;
+    const userId = (req as any).user?.id;
+    try {
+      await UserRepository.updateFcmToken(userId, fcmToken);
+      res.status(200).json({ status: 'success', message: 'Token updated' });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: 'Database update failed' });
+    }
+  }
 };

@@ -23,12 +23,12 @@ export const userIdRule = Joi.string().guid({ version: 'uuidv4' }).required().me
   'string.base': 'user_id must be a string',
 });
 
-export const driverIdRule = Joi.string().guid({ version: 'uuidv4' }).optional().messages({
+export const driverIdRule = Joi.string().guid({ version: 'uuidv4' }).allow(null).optional().messages({
   'string.guid': 'driver_id must be a valid UUID v4',
   'string.base': 'driver_id must be a string',
 });
 
-export const vehicleIdRule = Joi.string().guid({ version: 'uuidv4' }).optional().messages({
+export const vehicleIdRule = Joi.string().guid({ version: 'uuidv4' }).allow(null).optional().messages({
   'string.guid': 'vehicle_id must be a valid UUID v4',
   'string.base': 'vehicle_id must be a string',
 });

@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { DriverService } from './driver.service';
 import { successResponse } from '../../shared/errorHandler';
+import { Server } from 'socket.io';
 
 export const DriverController = {
   async addDriver(req: Request, res: Response, next: NextFunction) {
@@ -49,4 +50,31 @@ export const DriverController = {
       next(err);
     }
   },
+
+  async findNearbyDrivers(req: Request, res: Response) {
+    try {
+      const io = req.app.get('io');
+      const { lng, lat, newTrip } = req.body;
+      const drivers = await DriverService.findNearbyDrivers(
+        io,
+        Number(lng),
+        Number(lat),
+        newTrip
+      );
+
+      return res.status(200).json({ success: true, data: drivers });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  async updateLocation(req: Request, res: Response) {
+    try {
+      const { driverId, lat, lng, address } = req.body;
+      await DriverService.syncLocation(driverId, lat, lng, address);
+      return res.status(200).json({ success: true, message: "Location updated" });
+    } catch (error: any) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
 };

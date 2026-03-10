@@ -1,5 +1,6 @@
 // src/modules/drivers/driver.validator.ts
 import { celebrate, Joi, Segments } from 'celebrate';
+import { TripValidation } from '../trip/trip.validator';
 
 const addressSchema = Joi.object({
   street: Joi.string().required(),
@@ -96,4 +97,21 @@ export const updateDriverValidator = celebrate({
     vehicle: updateVehicleSchema.unknown(true).optional(),
     documents: Joi.array().items(updateDocumentSchema.unknown(true)).optional(),
   }).unknown(true),
+});
+
+export const findNearbyDriversValidator = celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    // Longitude: required for PostGIS ST_MakePoint
+    lng: Joi.number().min(-180).max(180).required()
+      .messages({ 'any.required': 'Longitude is required for location search' }),
+
+    // Latitude: required for PostGIS ST_MakePoint
+    lat: Joi.number().min(-90).max(90).required()
+      .messages({ 'any.required': 'Latitude is required for location search' }),
+
+    newTrip: Joi.array().items(TripValidation.createTripValidation.unknown(true)).min(1).required(),
+    // Radius: optional, defaults to 5km (5000 meters)
+    radius: Joi.number().min(100).max(50000).default(5000)
+      .messages({ 'number.max': 'Search radius cannot exceed 50km' }).optional(),
+  }),
 });

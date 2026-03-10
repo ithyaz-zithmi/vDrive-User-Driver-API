@@ -12,6 +12,8 @@ export enum ServiceType {
 
 export enum TripStatus {
   REQUESTED = 'REQUESTED',
+  ACCEPTED = 'ACCEPTED',
+  ARRIVING = 'ARRIVING',
   LIVE = 'LIVE',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',

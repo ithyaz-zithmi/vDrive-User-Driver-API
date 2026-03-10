@@ -40,7 +40,7 @@ export const UserRepository = {
   async createUser(data: User): Promise<User | null> {
 
     try {
-      
+
       const result = await query(
         `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, role, gender, date_of_birth, status, email, device_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()) RETURNING *;`,
         [
@@ -57,9 +57,9 @@ export const UserRepository = {
           data.device_id,
         ]
       );
-       return result.rows[0] || null;
+      return result.rows[0] || null;
     } catch (error) {
-       throw error;
+      throw error;
     }
 
   },
@@ -110,5 +110,16 @@ export const UserRepository = {
     const result = await query(selectQuery, params);
 
     return { users: result.rows, total };
+  },
+
+  // Save or Update the FCM Token for a user
+  async updateFcmToken(id: string, fcmToken: string): Promise<void> {
+    await query('UPDATE users SET fcm_token = $1 WHERE id = $2', [fcmToken, id]);
+  },
+
+  // Retrieve the FCM Token to send a notification
+  async getFcmTokenById(id: string): Promise<string | null> {
+    const result = await query('SELECT fcm_token FROM users WHERE id = $1', [id]);
+    return result.rows[0]?.fcm_token || null;
   },
 };

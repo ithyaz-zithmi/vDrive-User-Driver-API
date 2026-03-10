@@ -1,8 +1,7 @@
 import { Joi } from 'celebrate';
 
 export const otpRule = Joi.string()
-  .length(4)
-  .pattern(/^[0-9]+$/)
+  .pattern(/^(?:\d{4}|\d{6})$/)
   .required()
   .messages({
     'string.empty': 'OTP is required.',

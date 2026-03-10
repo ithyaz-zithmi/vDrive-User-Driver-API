@@ -110,7 +110,7 @@ export const DriverRepository = {
       if (driverData.address) { driverFields.push(`address = $${paramCount++}`); driverValues.push(JSON.stringify(driverData.address)); }
       if (driverData.role) { driverFields.push(`role = $${paramCount++}`); driverValues.push(driverData.role); }
       if (driverData.status) { driverFields.push(`status = $${paramCount++}`); driverValues.push(driverData.status); }
-      
+
       // JSONB updates using merge operator ||
       if (driverData.kyc) { driverFields.push(`kyc = kyc || $${paramCount++}`); driverValues.push(JSON.stringify(driverData.kyc)); }
       if (driverData.credit) { driverFields.push(`credit = credit || $${paramCount++}`); driverValues.push(JSON.stringify(driverData.credit)); }
@@ -130,32 +130,32 @@ export const DriverRepository = {
       if (driverData.vehicle) {
         // Check if vehicle exists
         const vehicleCheck = await query('SELECT id FROM vehicles WHERE driver_id = $1', [id]);
-        
-        if (vehicleCheck.rows.length > 0) {
-           // Update existing vehicle
-           const vehicleFields: string[] = [];
-           const vehicleValues: any[] = [];
-           let vParamCount = 1;
-           
-           if (driverData.vehicle.vehicleNumber) { vehicleFields.push(`vehicle_number = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.vehicleNumber); }
-           if (driverData.vehicle.vehicleModel) { vehicleFields.push(`vehicle_model = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.vehicleModel); }
-           if (driverData.vehicle.vehicleType) { vehicleFields.push(`vehicle_type = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.vehicleType); }
-           if (driverData.vehicle.fuelType) { vehicleFields.push(`fuel_type = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.fuelType); }
-           if (driverData.vehicle.registrationDate) { vehicleFields.push(`registration_date = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.registrationDate); }
-           if (driverData.vehicle.insuranceExpiry) { vehicleFields.push(`insurance_expiry = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.insuranceExpiry); }
-           if (driverData.vehicle.rcDocumentUrl) { vehicleFields.push(`rc_document_url = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.rcDocumentUrl); }
-           if (driverData.vehicle.status !== undefined) { vehicleFields.push(`status = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.status); }
 
-           if (vehicleFields.length > 0) {
-             vehicleValues.push(id);
-             await query(
-               `UPDATE vehicles SET ${vehicleFields.join(', ')} WHERE driver_id = $${vParamCount}`,
-               vehicleValues
-             );
-           }
+        if (vehicleCheck.rows.length > 0) {
+          // Update existing vehicle
+          const vehicleFields: string[] = [];
+          const vehicleValues: any[] = [];
+          let vParamCount = 1;
+
+          if (driverData.vehicle.vehicleNumber) { vehicleFields.push(`vehicle_number = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.vehicleNumber); }
+          if (driverData.vehicle.vehicleModel) { vehicleFields.push(`vehicle_model = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.vehicleModel); }
+          if (driverData.vehicle.vehicleType) { vehicleFields.push(`vehicle_type = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.vehicleType); }
+          if (driverData.vehicle.fuelType) { vehicleFields.push(`fuel_type = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.fuelType); }
+          if (driverData.vehicle.registrationDate) { vehicleFields.push(`registration_date = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.registrationDate); }
+          if (driverData.vehicle.insuranceExpiry) { vehicleFields.push(`insurance_expiry = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.insuranceExpiry); }
+          if (driverData.vehicle.rcDocumentUrl) { vehicleFields.push(`rc_document_url = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.rcDocumentUrl); }
+          if (driverData.vehicle.status !== undefined) { vehicleFields.push(`status = $${vParamCount++}`); vehicleValues.push(driverData.vehicle.status); }
+
+          if (vehicleFields.length > 0) {
+            vehicleValues.push(id);
+            await query(
+              `UPDATE vehicles SET ${vehicleFields.join(', ')} WHERE driver_id = $${vParamCount}`,
+              vehicleValues
+            );
+          }
         } else {
           // Create new vehicle if it doesn't exist
-           await query(
+          await query(
             `INSERT INTO vehicles (
               driver_id, vehicle_number, vehicle_model, vehicle_type, 
               fuel_type, registration_date, insurance_expiry, rc_document_url, status
@@ -185,7 +185,7 @@ export const DriverRepository = {
           // 1. If valid UUID provided, try to use it
           if (doc.documentId && uuidRegex.test(doc.documentId)) {
             docIdToUpdate = doc.documentId;
-          } 
+          }
           // 2. If no valid UUID, try to find existing document by type
           else if (doc.documentType) {
             const existingDocResult = await query(
@@ -329,16 +329,16 @@ export const DriverRepository = {
       updatedAt: driver.updated_at,
       vehicle: vehicle
         ? {
-            vehicleId: vehicle.id,
-            vehicleNumber: vehicle.vehicle_number,
-            vehicleModel: vehicle.vehicle_model,
-            vehicleType: vehicle.vehicle_type,
-            fuelType: vehicle.fuel_type,
-            registrationDate: vehicle.registration_date,
-            insuranceExpiry: vehicle.insurance_expiry,
-            rcDocumentUrl: vehicle.rc_document_url || '',
-            status: vehicle.status,
-          }
+          vehicleId: vehicle.id,
+          vehicleNumber: vehicle.vehicle_number,
+          vehicleModel: vehicle.vehicle_model,
+          vehicleType: vehicle.vehicle_type,
+          fuelType: vehicle.fuel_type,
+          registrationDate: vehicle.registration_date,
+          insuranceExpiry: vehicle.insurance_expiry,
+          rcDocumentUrl: vehicle.rc_document_url || '',
+          status: vehicle.status,
+        }
         : null,
       documents: documents.map((doc) => ({
         documentId: doc.id,
@@ -371,5 +371,78 @@ export const DriverRepository = {
         createdAt: log.created_at,
       })),
     };
+  },
+
+  async getDriverbyID(id: string): Promise<Driver | null> {
+    const driverResult = await query('SELECT * FROM drivers WHERE id = $1', [id]);
+    if (driverResult.rows.length === 0) return null;
+
+    const driver = driverResult.rows[0];
+    return driver;
+
+  },
+
+  async findNearbyDriversExpanding(lng: number, lat: number) {
+    const radiusTiers = [500, 2000, 5000, 10000, 20000];
+    let drivers = [];
+
+    for (const radius of radiusTiers) {
+      console.log(`Searching within ${radius} meters...`);
+
+      drivers = await this.findNearbyDrivers(lng, lat, radius);
+
+      if (drivers.length > 0) {
+        return {
+          drivers,
+          searchedRadius: radius
+        };
+      }
+    }
+
+    return {
+      drivers: [],
+      searchedRadius: radiusTiers[radiusTiers.length - 1]
+    };
+  },
+
+  async findNearbyDrivers(lng: number, lat: number, radiusMeters: number) {
+    const sqlQuery = `
+       SELECT
+        id,
+        first_name,
+        last_name,
+        full_name,
+        current_lat,
+        current_lng,
+        rating,
+        phone_number,
+        ROUND(ST_Distance(location, ST_MakePoint($1, $2)::geography)::numeric, 0) as distance_meters
+    FROM drivers
+    WHERE availability = true
+      AND status = 'active'
+      AND ST_DWithin(location, ST_MakePoint($1, $2)::geography, $3)
+      -- AND last_active >= NOW() - INTERVAL '10 minutes'
+    ORDER BY distance_meters ASC;
+    `;
+    console.log(lng, lat, radiusMeters, "lng, lat, radiusMeters")
+    const { rows } = await query(sqlQuery, [lng, lat, radiusMeters]);
+    return rows;
+  },
+
+
+  async updateLocation(id: string, lat: number, lng: number, address: string) {
+    const sqlQuery = `
+            UPDATE drivers 
+            SET 
+                current_latitude = $1, 
+                current_longitude = $2, 
+                current_address = $3,
+                last_active = CURRENT_TIMESTAMP 
+            WHERE id = $4 AND is_deleted = FALSE
+            RETURNING id, full_name;
+        `;
+
+    const { rows } = await query(sqlQuery, [lat, lng, address, id]);
+    return rows[0];
   },
 };

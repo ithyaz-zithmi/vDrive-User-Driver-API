@@ -46,13 +46,28 @@ export const AuthRepository = {
     await query(`DELETE FROM OTP WHERE phone_number=$1 AND role=$2`, [phone_number, role]);
   },
 
+
   async getUser(phone_number: string, role: string): Promise<User | null> {
+    // 1. Map roles to specific table names
+    const tableMap: Record<string, string> = {
+      customer: 'users',
+      driver: 'drivers'
+    };
+
+    const tableName = tableMap[role];
+
+    // 2. Security Check: Ensure the role is valid before querying
+    if (!tableName) {
+      throw new Error(`Invalid role provided: ${role}`);
+    }
+
+    // 3. Execute the query using the safe table name
     const result = await query(
-      `SELECT * FROM users WHERE phone_number = $1 AND role = $2 LIMIT 1`,
+      `SELECT * FROM ${tableName} WHERE phone_number = $1 AND role = $2 LIMIT 1`,
       [phone_number, role]
     );
 
-    return result?.rows[0];
+    return result?.rows[0] || null;
   },
 
   async signOutUser(id: string): Promise<boolean> {
