@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 # Firebase Secret Key
 firebase-service-account.json
+*firebase-adminsdk*.json
