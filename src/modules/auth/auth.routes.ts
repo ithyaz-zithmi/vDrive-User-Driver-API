@@ -5,6 +5,7 @@ import isAuthenticated from '../../shared/authentication';
 import { AuthValidation } from './auth.validator';
 import { validateBody, validateParams } from '../../utilities/helper';
 import { UserValidation } from '../users/user.validator';
+import { authMiddleware } from './auth.middleware';
 
 const router = Router();
 
@@ -44,6 +45,10 @@ router.use(isAuthenticated);
 
 router.get('/me', AuthController.getMe);
 
-router.get('/signout/:id', validateParams(UserValidation.idValidation), AuthController.signOut);
+router.post('/signout/:id', validateParams(UserValidation.idValidation), AuthController.signOut);
+
+
+router.get('/validate-session', authMiddleware, AuthController.validateSession);
+
 
 export default router;

@@ -144,7 +144,8 @@ export const TripRepository = {
             UPDATE trips 
             SET 
                 trip_status = 'ACCEPTED', 
-                driver_id = $1 
+                driver_id = $1 ,
+                assigned_at = NOW()
             WHERE 
                 trip_id = $2 
                 AND trip_status = 'REQUESTED'
@@ -176,34 +177,73 @@ export const TripRepository = {
     const sql = `
       SELECT 
         t.*, 
-        u.full_name AS user_name, 
-        u.phone_number AS user_phone,
-        d.full_name AS driver_name,
-        d.phone_number AS driver_phone,
+        u.full_name       AS user_name, 
+        u.phone_number    AS user_phone,
+        d.full_name       AS driver_name,
+        d.phone_number    AS driver_phone,
         COALESCE(
           json_agg(
             json_build_object(
-              'id', tc.id,
-              'trip_id', tc.trip_id,
-              'change_type', tc.change_type,
-              'old_value', tc.old_value,
-              'new_value', tc.new_value,
-              'changed_by', tc.changed_by,
-              'changed_at', tc.changed_at,
-              'notes', tc.notes
-            )
-          ) FILTER (WHERE tc.id IS NOT NULL), '[]'
-        ) AS trip_changes
+              'id',                    tt.id,
+              'trip_id',               tt.trip_id,
+              'sequence_no',           tt.sequence_no,
+              'event_type',            tt.event_type,
+              'status',                tt.status,
+              'actor_type',            tt.actor_type,
+              'actor_id',              tt.actor_id,
+              'actor_name',            tt.actor_name,
+              'changed_fields',        tt.changed_fields,
+              'old_value',             tt.old_value,
+              'new_value',             tt.new_value,
+              'notes',                 tt.notes,
+              'metadata',              tt.metadata,
+              'event_at',              tt.event_at
+            ) ORDER BY tt.sequence_no ASC
+          ) FILTER (WHERE tt.id IS NOT NULL AND tt.actor_type = 'user'),
+          '[]'
+        ) AS trip_transactions
       FROM trips t
-      LEFT JOIN users u ON t.user_id = u.id
-      LEFT JOIN drivers d ON t.driver_id = d.id
-      LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id
+      LEFT JOIN users             u  ON t.user_id  = u.id
+      LEFT JOIN drivers           d  ON t.driver_id = d.id
+      LEFT JOIN trip_transactions tt ON t.trip_id  = tt.trip_id
       GROUP BY t.trip_id, u.full_name, u.phone_number, d.full_name, d.phone_number
       ORDER BY t.created_at DESC;
     `;
     const result = await query(sql);
     return result.rows;
   },
+  // async getAllTripsWithChanges(): Promise<TripDetailsType[]> {
+  //   const sql = `
+  //     SELECT 
+  //       t.*, 
+  //       u.full_name AS user_name, 
+  //       u.phone_number AS user_phone,
+  //       d.full_name AS driver_name,
+  //       d.phone_number AS driver_phone,
+  //       COALESCE(
+  //         json_agg(
+  //           json_build_object(
+  //             'id', tc.id,
+  //             'trip_id', tc.trip_id,
+  //             'change_type', tc.change_type,
+  //             'old_value', tc.old_value,
+  //             'new_value', tc.new_value,
+  //             'changed_by', tc.changed_by,
+  //             'changed_at', tc.changed_at,
+  //             'notes', tc.notes
+  //           )
+  //         ) FILTER (WHERE tc.id IS NOT NULL), '[]'
+  //       ) AS trip_changes
+  //     FROM trips t
+  //     LEFT JOIN users u ON t.user_id = u.id
+  //     LEFT JOIN drivers d ON t.driver_id = d.id
+  //     LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id
+  //     GROUP BY t.trip_id, u.full_name, u.phone_number, d.full_name, d.phone_number
+  //     ORDER BY t.created_at DESC;
+  //   `;
+  //   const result = await query(sql);
+  //   return result.rows;
+  // },
 
 
   //TripChanges
@@ -233,6 +273,63 @@ export const TripRepository = {
     } catch (error) {
       console.error("Database Error in updateTripStatus:", error);
       throw new Error("Failed to update trip Status in database");
+    }
+  },
+
+
+  async findActivityByDriverId(driverId: string, from?: string, to?: string, status?: string): Promise<any[]> {
+    let sql = `
+      SELECT t.*, u.full_name AS passenger_name 
+      FROM trips t
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE t.driver_id = $1
+    `;
+    const params: any[] = [driverId];
+
+    if (from) {
+      sql += ` AND t.created_at >= $${params.length + 1}`;
+      params.push(from);
+    }
+    if (to) {
+      sql += ` AND t.created_at <= $${params.length + 1}`;
+      params.push(to);
+    }
+    if (status) {
+      sql += ` AND t.trip_status = $${params.length + 1}`;
+      params.push(status.toUpperCase());
+    }
+
+    sql += ` ORDER BY t.created_at DESC`;
+
+    const result = await query(sql, params);
+    return result.rows;
+  },
+
+  async getStatsByDriverId(driverId: string): Promise<any> {
+    const result = await query(
+      `SELECT 
+        COUNT(*) as total_trips,
+        COUNT(CASE WHEN trip_status = 'COMPLETED' THEN 1 END) as completed_trips,
+        COUNT(CASE WHEN trip_status = 'CANCELLED' THEN 1 END) as cancelled_trips,
+        SUM(CASE WHEN trip_status = 'COMPLETED' THEN total_fare ELSE 0 END) as total_earnings
+      FROM trips 
+      WHERE driver_id = $1`,
+      [driverId]
+    );
+    return result.rows[0];
+  },
+
+  async cancelTrip(tripId: string, tripStatus: string, cancelReason: string, cancelBy: string, notes: string): Promise<Trip | null> {
+    const sql = `UPDATE trips SET trip_status = $2, cancel_reason = $3, cancel_by = $4, notes = $5, updated_at = NOW() WHERE trip_id = $1 RETURNING *;`;
+    try {
+      const result = await query(sql, [tripId, tripStatus, cancelReason, cancelBy, notes]);
+      if (result.rows.length === 0) {
+        return null;
+      }
+      return result.rows[0];
+    } catch (error) {
+      console.error("Database Error in cancelTrip:", error);
+      throw new Error("Failed to cancel trip in database");
     }
   },
 

@@ -37,6 +37,18 @@ router.patch(
 
 router.patch('/enable/:id', validateParams(UserValidation.idValidation), UserController.enableUser);
 
+router.patch(
+  '/suspend/:id',
+  validateParams(UserValidation.idValidation),
+  UserController.suspendUser
+);
+
+router.patch(
+  '/unsuspend/:id',
+  validateParams(UserValidation.idValidation),
+  UserController.unsuspendUser
+);
+
 router.get('/search', validateQuery(UserValidation.searchValidation), UserController.searchUsers);
 
 // Driver documents routes

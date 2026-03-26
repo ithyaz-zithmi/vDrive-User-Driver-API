@@ -1,5 +1,5 @@
 import { Joi } from 'celebrate';
-import { UserRole, Gender, UserStatus } from '../../enums/user.enums';
+import { UserRole, Gender, UserStatus, OnboardingStatus } from '../../enums/user.enums';
 import { enumString } from '../../utilities/helper';
 
 export const phoneNumberRule = Joi.string()
@@ -162,3 +162,9 @@ export const ProfileUrl = Joi.string().messages({
   'string.base': 'ProfileUrl must be a string',
   'string.empty': 'ProfileUrl cannot be empty',
 });
+
+export const onboardingStatusRule = enumString(Object.values(OnboardingStatus)).messages({
+  'any.only': 'Onboarding status must be one of: pending, phone_verified, profile_completed, completed',
+  'any.required': 'Onboarding status is required',
+  'string.empty': 'Onboarding status cannot be empty',
+})

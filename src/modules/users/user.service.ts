@@ -9,7 +9,7 @@ export const UserService = {
   },
 
   async getUserById(id: string) {
-    const user = await UserRepository.findById(id, UserStatus.DELETED);
+    const user = await UserRepository.findById(id, UserStatus.ACTIVE);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }
@@ -79,6 +79,22 @@ export const UserService = {
   },
 
   async enableUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
+  async suspendUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.SUSPENDED);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
+  async unsuspendUser(id: string) {
     const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };

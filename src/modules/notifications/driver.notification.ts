@@ -1,0 +1,107 @@
+import { sendToDevice } from '../../config/firebase';
+import { DriverNotificationType } from './notification.types';
+
+export const DriverNotifications = {
+
+    forceLogout: (fcmToken: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.FORCE_LOGOUT,
+            title: 'Session Ended',
+            body: 'Your account was accessed from another device.',
+        }),
+
+    newRideRequest: (fcmToken: string, bookingId: string, pickup: string, drop: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.NEW_RIDE_REQUEST,
+            title: 'New Ride Request',
+            body: `Pickup: ${pickup} → Drop: ${drop}`,
+            data: { bookingId, pickup, drop },
+        }),
+
+    rideStarted: (fcmToken: string, bookingId: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.RIDE_STARTED,
+            title: 'Ride Started',
+            body: `Your ride has started.`,
+            data: { bookingId },
+        }),
+
+    rideCancelled: (fcmToken: string, bookingId: string, reason?: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.RIDE_CANCELLED,
+            title: 'Ride Cancelled',
+            body: reason || 'The ride has been cancelled by the user.',
+            data: { bookingId },
+        }),
+
+    bookingCancelled: (fcmToken: string, bookingId: string, reason?: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.BOOKING_CANCELLED,
+            title: 'Booking Cancelled',
+            body: reason || 'Your booking has been cancelled.',
+            data: { bookingId, reason: reason ?? '' },
+        }),
+
+    rideCompleted: (fcmToken: string, bookingId: string, amount: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.RIDE_COMPLETED,
+            title: 'Ride Completed',
+            body: `Your ride has been completed. You earned ₹${amount}.`,
+            data: { bookingId, amount },
+        }),
+
+    paymentReceived: (fcmToken: string, amount: string, bookingId: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.PAYMENT_RECEIVED,
+            title: 'Payment Received',
+            body: `You received ₹${amount} for your ride.`,
+            data: { bookingId, amount },
+        }),
+
+    documentApproved: (fcmToken: string, documentType: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.DOCUMENT_APPROVED,
+            title: 'Document Approved',
+            body: `Your ${documentType} has been approved.`,
+            data: { documentType },
+        }),
+
+    documentRejected: (fcmToken: string, documentType: string, reason: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.DOCUMENT_REJECTED,
+            title: 'Document Rejected',
+            body: `Your ${documentType} was rejected. Reason: ${reason}`,
+            data: { documentType, reason },
+        }),
+
+    kycApproved: (fcmToken: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.KYC_APPROVED,
+            title: 'KYC Approved',
+            body: 'Your KYC verification has been approved. You can now start accepting rides.',
+        }),
+
+    kycRejected: (fcmToken: string, reason: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.KYC_REJECTED,
+            title: 'KYC Rejected',
+            body: `Your KYC was rejected. Reason: ${reason}`,
+            data: { reason },
+        }),
+
+    walletCredited: (fcmToken: string, amount: string, balance: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.WALLET_CREDITED,
+            title: 'Wallet Credited',
+            body: `₹${amount} added to your wallet. Balance: ₹${balance}`,
+            data: { amount, balance },
+        }),
+
+    walletDebited: (fcmToken: string, amount: string, balance: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.WALLET_DEBITED,
+            title: 'Wallet Debited',
+            body: `₹${amount} deducted from your wallet. Balance: ₹${balance}`,
+            data: { amount, balance },
+        }),
+};

@@ -9,6 +9,8 @@ import isAuthenticated from '../shared/authentication';
 import tripRoutes from '../modules/trip/trip.routes';
 import paymentRoutes from '../modules/payments/payment.routes';
 import simulationRoutes from '../modules/simulation/simulation.routes';
+import tripTransactionRoutes from '../modules/triptransactions/triptransaction.routes';
+import pricingRoutes from '../modules/pricing/pricing.routes';
 
 const router = Router();
 
@@ -28,6 +30,8 @@ router.use('/drivers', driverRoutes);
 router.use('/generate-presigned-url', s3Routes);
 router.use('/payment', paymentRoutes);
 router.use('/simulation', simulationRoutes);
+router.use('/triptransactions', tripTransactionRoutes);
+router.use('/pricing', pricingRoutes);
 
 
 export default router;

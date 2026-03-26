@@ -1,6 +1,9 @@
 import { query } from '../../shared/database';
 import { User } from '../users/user.model';
 import { OTP } from '../auth/otp.model';
+import * as bcrypt from 'bcrypt';
+import { logger } from '../../shared/logger';
+import { unsubscribeFromTopic } from '../../config/firebase';
 
 export const AuthRepository = {
   async saveHashedOtp(
@@ -70,15 +73,213 @@ export const AuthRepository = {
     return result?.rows[0] || null;
   },
 
-  async signOutUser(id: string): Promise<boolean> {
-    const result = await query(`UPDATE users SET device_id = NULL WHERE id = $1`, [id]);
+ 
+  async signOutUser(
+    userId: string,
+    device_id: string,
+    role: string
+  ): Promise<boolean> {
+    try {
+      const table = role === 'driver' ? 'drivers' : 'users';
 
-    return (result?.rowCount ?? 0) > 0;
+      // ✅ Get FCM token before clearing session
+      const fcmToken = await AuthRepository.getFcmToken(userId, device_id);
+
+      // ✅ Invalidate specific device session
+      await query(
+        `UPDATE user_sessions
+       SET is_active     = FALSE,
+           refresh_token = NULL,
+           fcm_token     = NULL,
+           force_logout  = FALSE,
+           last_active   = NOW()
+       WHERE user_id = $1 AND device_id = $2`,
+        [userId, device_id]
+      );
+
+      // ✅ Clear device_id from users/drivers table
+      await query(
+        `UPDATE ${table} SET device_id = NULL WHERE id = $1`,
+        [userId]
+      );
+
+      // ✅ Unsubscribe from FCM topic
+      if (fcmToken) {
+        await unsubscribeFromTopic(fcmToken, role);
+      }
+
+      logger.info(`User ${userId} signed out from device ${device_id}`);
+      return true;
+
+    } catch (err) {
+      logger.error(`SignOut failed for user ${userId}: ${err}`);
+      return false;
+    }
   },
 
-  async userDeviceIDUpdate(device_id: string, id: string): Promise<boolean> {
-    const result = await query(`UPDATE users SET device_id = $1 WHERE id = $2`, [device_id, id]);
-
-    return (result?.rowCount ?? 0) > 0;
+  async userDeviceIDUpdate(id: string, device_id: string, role: string, fcm_token: string): Promise<boolean> {
+    if (role === 'customer') {
+      const result = await query(`UPDATE users SET device_id = $1, fcm_token = $2 WHERE id = $3`, [device_id, fcm_token, id]);
+      return (result?.rowCount ?? 0) > 0;
+    }
+    if (role === 'driver') {
+      const result = await query(`UPDATE drivers SET device_id = $1, fcm_token = $2 WHERE id = $3`, [device_id, fcm_token, id]);
+      return (result?.rowCount ?? 0) > 0;
+    }
+    return false;
   },
-};
+
+
+  // *************************************************************************** 
+  // ─── Sessions ─────────────────────────────────────────────────────────────
+  // *************************************************************************** 
+
+
+  // Create or update session for user+device
+  async upsertSession(
+    user_id: string,
+    device_id: string,
+    role: string,
+    refresh_token: string,
+    fcm_token: string
+  ) {
+    // Hash refresh token before storing
+    const hashedToken = await bcrypt.hash(refresh_token, 10);
+    await query(
+      `INSERT INTO user_sessions
+         (user_id, device_id, role, refresh_token, fcm_token, is_active, last_active)
+       VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+       ON CONFLICT (user_id, device_id)
+       DO UPDATE SET
+         refresh_token = $4,
+         fcm_token = $5,
+         is_active = TRUE,
+         force_logout  = FALSE,
+         last_active = NOW()`,
+      [user_id, device_id, role, hashedToken, fcm_token]
+    );
+  },
+
+  // Get active session for user
+  async getActiveSession(user_id: string, exclude_device_id?: string) {
+    const result = await query(
+      `SELECT * FROM user_sessions
+     WHERE user_id = $1
+       AND is_active = TRUE
+       ${exclude_device_id ? 'AND device_id != $2' : ''}
+     ORDER BY last_active DESC
+     LIMIT 1`,
+      exclude_device_id ? [user_id, exclude_device_id] : [user_id]
+    );
+    return result.rows[0] || null;
+  },
+
+  // Invalidate all sessions for user (logout from all devices)
+  async invalidateAllSessions(user_id: string, exclude_device_id?: string) {
+    await query(
+      `UPDATE user_sessions
+     SET is_active     = FALSE,
+         refresh_token = NULL,
+         force_logout  = TRUE,   -- ✅ set force_logout on invalidation
+         last_active   = NOW()
+     WHERE user_id = $1
+       ${exclude_device_id ? 'AND device_id != $2' : ''}`,
+      exclude_device_id ? [user_id, exclude_device_id] : [user_id]
+    );
+  },
+
+  // Invalidate specific device session
+  async invalidateSession(userId: string, device_id: string, role: string) {
+    // ✅ Invalidate only the specific device session
+    await query(
+      `UPDATE user_sessions
+     SET is_active = FALSE,
+         refresh_token = NULL
+     WHERE user_id = $1 AND device_id = $2`,
+      [userId, device_id]
+    );
+    const table = role === 'driver' ? 'drivers' : 'users';
+    await query(
+      `UPDATE ${table} SET device_id = NULL, refresh_token = NULL WHERE id = $1`,
+      [userId]
+    );
+
+    return true;
+  },
+
+  // Also add getSessionByDevice to AuthRepository
+  async getSessionByDevice(user_id: string, device_id: string) {
+    const result = await query(
+      `SELECT * FROM user_sessions
+     WHERE user_id = $1
+       AND device_id = $2
+     LIMIT 1`,
+      [user_id, device_id]
+    );
+    return result.rows[0] || null;
+  },
+
+  // Validate refresh token against stored hash
+  async validateRefreshToken(
+    user_id: string,
+    device_id: string,
+    refresh_token: string
+  ): Promise<boolean> {
+    const result = await query(
+      `SELECT refresh_token FROM user_sessions
+       WHERE user_id = $1 AND device_id = $2 AND is_active = TRUE`,
+      [user_id, device_id]
+    );
+    const session = result.rows[0];
+    if (!session?.refresh_token) return false;
+    return bcrypt.compare(refresh_token, session.refresh_token);
+  },
+
+  //*************************************************************************** 
+  // ─── FCM Token Methods ─────────────────────────────────────────────────────
+  //*************************************************************************** 
+
+  // Get FCM token for a device
+  async getFcmToken(user_id: string, device_id: string) {
+    const result = await query(
+      `SELECT fcm_token FROM user_sessions
+     WHERE user_id = $1 AND device_id = $2 LIMIT 1`,
+      [user_id, device_id]
+    );
+    return result.rows[0]?.fcm_token || null;
+  },
+  // auth.repository.ts
+
+  async clearFcmToken(user_id: string, device_id: string): Promise<void> {
+    await query(
+      `UPDATE user_sessions
+     SET fcm_token = NULL
+     WHERE user_id = $1 AND device_id = $2`,
+      [user_id, device_id]
+    );
+    logger.info(`FCM token cleared for user: ${user_id} device: ${device_id}`);
+  },
+  //****************************************************************************** 
+  // ─── Force Logout Methods ─────────────────────────────────────────────────────
+  //****************************************************************************** 
+
+  // Set force logout flag for old device
+  async setForceLogout(user_id: string, device_id: string) {
+    await query(
+      `UPDATE user_sessions
+     SET force_logout = TRUE
+     WHERE user_id = $1 AND device_id = $2`,
+      [user_id, device_id]
+    );
+  },
+
+  async checkForceLogout(user_id: string, device_id: string): Promise<boolean> {
+    const result = await query(
+      `SELECT force_logout FROM user_sessions
+     WHERE user_id = $1 AND device_id = $2 LIMIT 1`,
+      [user_id, device_id]
+    );
+    return result.rows[0]?.force_logout ?? false;
+  },
+}
+

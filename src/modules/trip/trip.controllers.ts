@@ -4,7 +4,12 @@ import { successResponse } from '../../shared/errorHandler';
 import { Trip } from './trip.model';
 import { logger } from '../../shared/logger';
 import { cleanUndefined } from '../../utilities/helper';
-import { notifyAdminOfNewTrip } from '../../services/admin-socket.service';
+import { notifyAdmin } from '../../sockets/admin-socket.service';
+import { DriverNotifications, UserNotifications } from '../notifications';
+import { UserRepository } from '../users/user.repository';
+import { CancelBy, TripStatus } from '../../enums/trip.enums';
+import { DriverRepository } from '../drivers/driver.repository';
+
 
 export const TripController = {
   //user-driver
@@ -50,7 +55,18 @@ export const TripController = {
         created_by: (req as any).adminId,
       };
       const trip = await TripService.createTrip(tripData);
-      notifyAdminOfNewTrip(trip);
+      notifyAdmin('NEW_TRIP', {
+        id: trip.trip_id,
+        userId: trip.user_id,
+        pickupLocation: trip.pickup_address,
+        dropoffLocation: trip.drop_address,
+        status: trip.trip_status,
+        createdAt: trip.created_at,
+      });
+      const userfcmtoken = await UserRepository.getFcmTokenById(trip.user_id);
+      if (userfcmtoken && trip.trip_id) {
+        await UserNotifications.bookingConfirmed(userfcmtoken, trip.trip_id);
+      }
       return successResponse(res, 201, 'Trip created successfully', trip);
     } catch (err: any) {
       logger.error(`createTrip error: ${err.message}`);
@@ -125,7 +141,7 @@ export const TripController = {
     const io = req.app.get('io');
 
     try {
-      const trip = await TripService.acceptTrip(io, tripId, driverId);
+      const trip = await TripService.acceptTrip(tripId, driverId);
 
       return res.status(200).json({
         success: true,
@@ -137,6 +153,98 @@ export const TripController = {
     }
   },
 
+  async cancelTrip(req: Request, res: Response) {
+    const { id } = req.params;
+    const { trip_status, cancel_reason, cancel_by, notes } = req.body;
+    const io = req.app.get('io');
+
+    try {
+      const trip = await TripService.cancelTrip(id, trip_status, cancel_reason, cancel_by, notes);
+      const userfcmtoken = trip.user_id
+        ? await UserRepository.getFcmTokenById(trip.user_id)
+        : null;
+
+      const driverfcmtoken = trip.driver_id
+        ? await DriverRepository.getFcmTokenById(trip.driver_id)
+        : null;
+
+      if (cancel_by === CancelBy.USER) {
+        if (userfcmtoken && trip.trip_id) {
+          await UserNotifications.bookingCancelled(userfcmtoken, trip.trip_id, notes || '');
+        }
+        // ✅ guard driverfcmtoken before passing
+        if (driverfcmtoken && trip.trip_id) {
+          await DriverNotifications.rideCancelled(driverfcmtoken, trip.trip_id);
+        }
+
+      } else if (cancel_by === CancelBy.DRIVER) {
+        if (driverfcmtoken && trip.trip_id) {
+          await DriverNotifications.bookingCancelled(driverfcmtoken, trip.trip_id, notes || '');
+        }
+        // ✅ guard userfcmtoken before passing
+        if (userfcmtoken && trip.trip_id) {
+          await UserNotifications.rideCancelled(userfcmtoken, trip.trip_id);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Trip cancelled successfully",
+        data: trip
+      });
+
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Could not cancel trip" });
+    }
+  },
+
+
+  async acceptTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const driverId = req.body.driver_id || (req as any).user?.id;
+      if (!driverId) throw { statusCode: 400, message: 'driver_id is required' };
+
+      const trip = await TripService.acceptTrip(id as string, driverId);
+      return successResponse(res, 200, 'Trip accepted successfully', trip);
+    } catch (err: any) {
+      logger.error(`acceptTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async startTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.startTrip(id as string);
+      return successResponse(res, 200, 'Trip started successfully', trip);
+    } catch (err: any) {
+      logger.error(`startTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async completeTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.completeTrip(id as string);
+      return successResponse(res, 200, 'Trip completed successfully', trip);
+    } catch (err: any) {
+      logger.error(`completeTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async arrivedTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.arrivedTrip(id as string);
+      return successResponse(res, 200, 'Driver arrived at pickup successfully', trip);
+    } catch (err: any) {
+      logger.error(`arrivedTrip error: ${err.message}`);
+      next(err);
+    }
+  },
 
   //Admin
   async getAllTripsWithChanges(req: Request, res: Response, next: NextFunction) {
@@ -170,6 +278,8 @@ export const TripController = {
 
     try {
       const trip = await TripService.updateTripStatus(io, trip_id, trip_status);
+      // Notify admin backend of the status update
+      // notifyAdmin(trip_id, trip_status);
 
       return res.status(200).json({
         success: true,
@@ -179,5 +289,7 @@ export const TripController = {
     } catch (error) {
       return res.status(500).json({ success: false, message: "Could not update trip" });
     }
-  }
+  },
+
+
 };

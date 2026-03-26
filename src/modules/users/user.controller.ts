@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { successResponse } from '../../shared/errorHandler';
 import { User } from './user.model';
-import { UserStatus } from '../../enums/user.enums';
+import { OnboardingStatus, UserStatus } from '../../enums/user.enums';
 import { logger } from '../../shared/logger';
 import { cleanUndefined, formFullName } from '../../utilities/helper';
 import { UserRepository } from './user.repository';
+import { notifyAdmin } from '../../sockets/admin-socket.service';
 
 export const UserController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
@@ -60,6 +61,17 @@ export const UserController = {
 
       const user = await UserService.createUser(body);
 
+      notifyAdmin('NEW_USER_CREATED', {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        phone_number: user.phone_number,
+        status: user.status || 'active',
+        updated_at: user.updated_at,
+        created_at: user.created_at,
+        gender: user.gender,
+        role: user.role || 'user',
+      });
       return successResponse(res, 200, 'User created successfully', user);
     } catch (err: any) {
       logger.error(`createUser error: ${err.message}`);
@@ -94,7 +106,8 @@ export const UserController = {
         favourite_places: rest.favourite_places,
         emergency_contacts: rest.emergency_contacts,
         settings_preferences: rest.settings_preferences,
-        profile_url: rest.profile_url || ''
+        profile_url: rest.profile_url || '',
+        onboarding_status: rest.onboarding_status,
       };
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);
@@ -154,6 +167,26 @@ export const UserController = {
       return successResponse(res, 200, 'User enabled successfully', user);
     } catch (err: any) {
       logger.error(`enableUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async suspendUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.suspendUser(req.params.id);
+      return successResponse(res, 200, 'User suspended successfully', user);
+    } catch (err: any) {
+      logger.error(`suspendUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async unsuspendUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.unsuspendUser(req.params.id);
+      return successResponse(res, 200, 'User unsuspended successfully', user);
+    } catch (err: any) {
+      logger.error(`unsuspendUser error: ${err.message}`);
       next(err);
     }
   },

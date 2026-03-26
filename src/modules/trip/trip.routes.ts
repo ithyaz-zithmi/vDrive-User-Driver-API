@@ -9,9 +9,8 @@ const router = Router();
 router.get('/', TripController.getAllTripsWithChanges);
 
 //user-driver  
-router.get('/all', TripController.getTrips);
-router.get('/:id', validateParams(TripValidation.idValidation), TripController.getTripByUserId);
 router.get('/bytripid/:id', validateParams(TripValidation.idValidation), TripController.getTripById);
+router.get('/all', TripController.getTrips);
 router.get('/activetrip/:id', validateParams(TripValidation.idValidation), TripController.getActiveTripByUserId)
 
 //Trip
@@ -21,11 +20,18 @@ router.post(
   TripController.createTrip
 );
 
+router.post('/:id', validateParams(TripValidation.idValidation), TripController.getTripByUserId);
 router.patch(
   '/update/:id',
   validateParams(TripValidation.idValidation),
   validateBody(TripValidation.updateTripValidation),
   TripController.updateTrip
+);
+router.patch(
+  '/cancel/:id',
+  validateParams(TripValidation.idValidation),
+  validateBody(TripValidation.cancelTripValidation),
+  TripController.cancelTrip
 );
 
 router.post('/accept',
@@ -46,5 +52,11 @@ router.post('/status/:id',
   validateBody(TripValidation.updateTripStatusValidation),
   TripController.updateTripStatusController
 );
+
+router.post('/:id/accept', validateParams(TripValidation.idValidation), TripController.acceptTrip);
+router.post('/:id/start', validateParams(TripValidation.idValidation), TripController.startTrip);
+router.post('/:id/arrived', validateParams(TripValidation.idValidation), TripController.arrivedTrip);
+router.post('/:id/complete', validateParams(TripValidation.idValidation), TripController.completeTrip);
+
 
 export default router;

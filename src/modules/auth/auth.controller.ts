@@ -8,6 +8,10 @@ import { User } from '../users/user.model';
 import { UserStatus, UserRole } from '../../enums/user.enums';
 import { UserService } from '../users/user.service';
 import { formFullName } from '../../utilities/helper';
+import { notifyAdmin } from '../../sockets/admin-socket.service';
+import { AuthRepository } from './auth.repository';
+import { query } from '../../shared/database';
+
 
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -35,7 +39,7 @@ export const AuthController = {
 
       successResponse(res, 200, 'OTP sent successfully', {
         expiresIn: result.expiresIn,
-        otp:result.otp,
+        otp: result.otp,
         exists: result.userexists,
         userName: result.userData
       });
@@ -46,7 +50,7 @@ export const AuthController = {
   },
 
   async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, role, otp, device_id, allow_new_device } = req.body;
+    const { phone_number, role, otp, device_id, allow_new_device, fcm_token } = req.body;
 
     try {
       logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
@@ -61,6 +65,7 @@ export const AuthController = {
         otp,
         device_id,
         allow_new_device,
+        fcm_token,
       });
 
       logger.info(`OTP sent successfully to: ${phone_number}`);
@@ -73,6 +78,7 @@ export const AuthController = {
       next(error);
     }
   },
+
 
   async refreshAccessToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -114,6 +120,7 @@ export const AuthController = {
 
       logger.info(`Fetching profile for user ID: ${userId}`);
       const userProfile = await AuthService.getMe(userId);
+      console.log(`User fetched successfully,`, userProfile);
 
       if (!userProfile) {
         logger.warn(`User not found for ID: ${userId}`);
@@ -164,6 +171,17 @@ export const AuthController = {
       };
 
       const newUser = await UserService.createUser(body);
+      notifyAdmin('NEW_USER_CREATED', {
+        id: newUser.id,
+        full_name: newUser.full_name,
+        email: newUser.email,
+        phone_number: newUser.phone_number,
+        status: newUser.status || 'active',
+        updated_at: newUser.updated_at,
+        created_at: newUser.created_at,
+        gender: newUser.gender,
+        role: newUser.role || 'user',
+      });
 
       successResponse(res, 201, 'User created successfully', newUser);
     } catch (error: any) {
@@ -218,7 +236,7 @@ export const AuthController = {
   },
 
   async driverLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, otp, device_id } = req.body;
+    const { phone_number, otp, device_id, fcm_token } = req.body;
 
     try {
       logger.info(`Driver login request received for: ${phone_number || 'unknown'}`);
@@ -233,6 +251,7 @@ export const AuthController = {
         otp,
         device_id,
         allow_new_device: true,
+        fcm_token,
       });
 
       logger.info(`Driver login successful for: ${phone_number}`);
@@ -249,11 +268,93 @@ export const AuthController = {
   async signOut(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await AuthService.signOutUser(id);
+      const { device_id, role } = req.body;
+      await AuthService.signOutUser(id, device_id, role);
       successResponse(res, 200, 'User sign out successfully');
     } catch (error: any) {
       logger.warn(`User creation failed: ${error.message}`);
       next(error);
+    }
+  },
+
+
+  // auth.controller.ts
+  async validateSession(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      const device_id = req.headers['x-device-id'] as string;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          code: 'UNAUTHORIZED',
+          message: 'Invalid token',
+        });
+      }
+
+      // ✅ 1. Check force_logout flag
+      if (device_id) {
+        const shouldForceLogout = await AuthRepository.checkForceLogout(
+          userId,
+          device_id
+        );
+        if (shouldForceLogout) {
+          return res.status(401).json({
+            success: false,
+            code: 'FORCE_LOGOUT',
+            message: 'Session ended from another device',
+          });
+        }
+      }
+
+      // ✅ 2. Check active session exists
+      const session = await AuthRepository.getSessionByDevice(userId, device_id);
+      if (!session || !session.is_active) {
+        return res.status(401).json({
+          success: false,
+          code: 'SESSION_EXPIRED',
+          message: 'Session not found or expired',
+        });
+      }
+
+      // ✅ 3. Get user data
+      const table = role === 'driver' ? 'drivers' : 'users';
+      const result = await query(
+        `SELECT * FROM ${table} WHERE id = $1 LIMIT 1`,
+        [userId]
+      );
+      const userData = result.rows[0];
+
+      if (!userData) {
+        return res.status(404).json({
+          success: false,
+          code: 'USER_NOT_FOUND',
+          message: 'User not found',
+        });
+      }
+
+      // ✅ 4. Check user status
+      if (userData.status === 'banned' || userData.status === 'deleted') {
+        return res.status(403).json({
+          success: false,
+          code: 'ACCOUNT_DISABLED',
+          message: 'Your account has been disabled',
+        });
+      }
+
+      // ✅ 5. Update last_active
+      await query(
+        `UPDATE user_sessions
+       SET last_active = NOW()
+       WHERE user_id = $1 AND device_id = $2`,
+        [userId, device_id]
+      );
+
+      return successResponse(res, 200, 'Session valid', userData);
+
+    } catch (err) {
+      next(err);
     }
   },
 };

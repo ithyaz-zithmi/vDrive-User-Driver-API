@@ -57,9 +57,9 @@ export const serviceTypeRule = enumString(Object.values(ServiceType))
 export const bookingTypeRule = enumString(Object.values(BookingType))
   .required()
   .messages({
-    'any.only': `service_type must be one of [${Object.values(BookingType).join(', ')}]`,
-    'any.required': 'service_type is required',
-    'string.base': 'service_type must be a string',
+    'any.only': `booking_type must be one of [${Object.values(BookingType).join(', ')}]`,
+    'any.required': 'booking_type is required',
+    'string.base': 'booking_type must be a string',
   })
 export const tripStatusRule = enumString(Object.values(TripStatus))
   .required()
@@ -76,10 +76,17 @@ export const paymentStatusRule = enumString(Object.values(PaymentStatus))
     'string.base': 'payment_status must be a string',
   });
 
-export const cancelReasonRule = enumString(Object.values(CancelReason))
+export const cancelReasonRule = enumString([
+  ...Object.values(CancelReason),
+  'reason_vehicle_breakdown',
+  'reason_heavy_traffic',
+  'reason_customer_not_reachable',
+  'reason_other',
+
+])
   .optional()
   .messages({
-    'any.only': `cancel_reason must be one of [${Object.values(CancelReason).join(', ')}]`,
+    'any.only': `cancel_reason must be one of [${Object.values(CancelReason).join(', ')}] or common frontend reason strings`,
     'string.base': 'cancel_reason must be a string',
   });
 
@@ -243,12 +250,11 @@ export const is_for_self = Joi.boolean().required().messages({
   'boolean.base': 'is_for_self must be a true or false value',
 });
 
-// Validator for the passenger details object
 export const passenger_details = Joi.object({
   name: Joi.string().required(),
   phone: Joi.string().min(10).max(15).required(),
 })
-  .allow(null) // Allows null when is_for_self is true
+  .allow(null)
   .when('is_for_self', {
     is: false,
     then: Joi.object().required().messages({
@@ -256,3 +262,7 @@ export const passenger_details = Joi.object({
     }),
     otherwise: Joi.optional(),
   });
+
+export const tripCodeRule = Joi.string().optional().messages({
+  'string.base': 'trip_code must be a string',
+});

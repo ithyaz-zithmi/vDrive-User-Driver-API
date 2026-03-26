@@ -56,6 +56,7 @@ export interface Trip {
   updated_by?: string;
   created_at?: Date;
   updated_at?: Date;
+  [key: string]: unknown;
 }
 
 //Admin

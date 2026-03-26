@@ -19,3 +19,9 @@ export const allowNewDeviceRule = Joi.boolean().required().messages({
   'boolean.base': 'allowNewDevice must be a boolean value',
   'any.required': 'Allow New Device is required.',
 });
+
+export const fcmTokenRule = Joi.string().allow('', null).optional().messages({
+  'string.empty': 'FCM token is required.',
+  'string.pattern.base': 'FCM token must be a string.',
+  'any.required': 'FCM token is required.',
+});

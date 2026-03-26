@@ -1,4 +1,4 @@
-import { Gender, UserRole, UserStatus } from '../../enums/user.enums';
+import { Gender, UserRole, UserStatus, OnboardingStatus } from '../../enums/user.enums';
 export interface EmergencyContact {
   name: string;
   phone: string;
@@ -12,9 +12,12 @@ export interface User {
   profile_url?: string;
   alternate_contact?: string;
   gender?: Gender;
-  role?:UserRole;
+  role?: UserRole;
+  user_code?: string;
   date_of_birth?: Date;
   status: UserStatus;
+  onboarding_status?: OnboardingStatus;
+  fcm_token?: string | null;
   email?: string;
   device_id: string;
   created_by?: string;
@@ -26,13 +29,13 @@ export interface User {
     push_notifications: boolean;
     sms_alerts: boolean;
   };
-  favourite_places?:{
-    id:string;
-    name:string;
-    showname?:string;
-    address:string;
-    lat:number;
-    lng:number
+  favourite_places?: {
+    id: string;
+    name: string;
+    showname?: string;
+    address: string;
+    lat: number;
+    lng: number
   }[];
   emergency_contacts?: EmergencyContact[];
   created_at?: Date;

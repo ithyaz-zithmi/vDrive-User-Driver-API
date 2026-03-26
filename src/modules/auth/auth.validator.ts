@@ -4,6 +4,7 @@ import {
   otpRule,
   refreshTokenRule,
   allowNewDeviceRule,
+  fcmTokenRule,
 } from '../../validations/schema/auth.schema';
 
 export const AuthValidation = {
@@ -20,6 +21,7 @@ export const AuthValidation = {
     otp: otpRule,
     device_id: deviceIdRule,
     allow_new_device: allowNewDeviceRule,
+    fcm_token: fcmTokenRule,
   }),
 
   refreshTokenValidation: Joi.object({
