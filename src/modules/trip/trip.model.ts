@@ -49,6 +49,7 @@ export interface Trip {
   rating?: number;
   re_route_id?: string;
   feedback?: string;
+  otp?: string;
   assigned_at?: Date;
   started_at?: Date;
   ended_at?: Date;

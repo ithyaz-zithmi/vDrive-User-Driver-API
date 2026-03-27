@@ -1,9 +1,11 @@
+import { Driver } from './../drivers/driver.model';
 import { query } from '../../shared/database';
 import { User } from '../users/user.model';
 import { OTP } from '../auth/otp.model';
 import * as bcrypt from 'bcrypt';
 import { logger } from '../../shared/logger';
 import { unsubscribeFromTopic } from '../../config/firebase';
+import { UserRole } from '../../enums/user.enums';
 
 export const AuthRepository = {
   async saveHashedOtp(
@@ -11,11 +13,23 @@ export const AuthRepository = {
     role: string,
     otpHash: string,
     expires_at: Date,
-    attempt_count: number
+    attempt_count: number,
+    request_count: number
   ): Promise<OTP | null> {
+    const now = new Date();
     const result = await query(
-      `INSERT INTO OTP (phone_number, role, otp_hash, created_at, expires_at, attempt_count) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [phone_number, role, otpHash, new Date(), expires_at, attempt_count]
+      `INSERT INTO OTP (phone_number, role, otp_hash, created_at, expires_at, attempt_count, request_count, last_requested_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (phone_number, role) 
+       DO UPDATE SET 
+          otp_hash = EXCLUDED.otp_hash, 
+          expires_at = EXCLUDED.expires_at, 
+          attempt_count = EXCLUDED.attempt_count, 
+          request_count = EXCLUDED.request_count,
+          last_requested_at = EXCLUDED.last_requested_at,
+          created_at = EXCLUDED.created_at
+       RETURNING *`,
+      [phone_number, role, otpHash, now, expires_at, attempt_count, request_count, now]
     );
     return result.rows[0] || null;
   },
@@ -40,7 +54,23 @@ export const AuthRepository = {
 
   async incrementAttemptCount(phone_number: string, role: string) {
     await query(
-      `UPDATE OTP SET attempt_count = attempt_count + 1 WHERE phone_number=$1 AND role=$2 ORDER BY created_at DESC LIMIT 1`,
+      `UPDATE OTP SET attempt_count = attempt_count + 1 WHERE id = (
+        SELECT id FROM OTP WHERE phone_number=$1 AND role=$2 ORDER BY created_at DESC LIMIT 1
+      )`,
+      [phone_number, role]
+    );
+  },
+
+  async blockUser(phone_number: string, role: string, blocked_until: Date) {
+    await query(
+      `UPDATE OTP SET blocked_until = $1 WHERE phone_number = $2 AND role = $3`,
+      [blocked_until, phone_number, role]
+    );
+  },
+
+  async resetRequestCount(phone_number: string, role: string) {
+    await query(
+      `UPDATE OTP SET request_count = 0 WHERE phone_number = $1 AND role = $2`,
       [phone_number, role]
     );
   },
@@ -67,6 +97,15 @@ export const AuthRepository = {
     // 3. Execute the query using the safe table name
     const result = await query(
       `SELECT * FROM ${tableName} WHERE phone_number = $1 AND role = $2 LIMIT 1`,
+      [phone_number, role]
+    );
+
+    return result?.rows[0] || null;
+  },
+
+    async getDriver(phone_number: string, role: string): Promise<User | null> {
+    const result = await query(
+      `SELECT * FROM drivers WHERE phone_number = $1 AND role = $2 LIMIT 1`,
       [phone_number, role]
     );
 

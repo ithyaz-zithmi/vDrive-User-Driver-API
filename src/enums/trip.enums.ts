@@ -10,6 +10,11 @@ export enum ServiceType {
   CAB_WITH_DRIVER = 'CAB_WITH_DRIVER',
 }
 
+export enum BookingType {
+  LIVE = 'LIVE',
+  SCHEDULED = 'SCHEDULED',
+}
+
 export enum TripStatus {
   REQUESTED = 'REQUESTED',
   ACCEPTED = 'ACCEPTED',
@@ -76,9 +81,4 @@ export enum ChangeBy {
   DRIVER = 'DRIVER',
   ADMIN = 'ADMIN',
   SYSTEM = 'SYSTEM',
-}
-
-export enum BookingType {
-  LIVE = 'LIVE',
-  SCHEDULED = 'SCHEDULED'
 }

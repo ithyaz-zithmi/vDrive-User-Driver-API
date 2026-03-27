@@ -1,3 +1,4 @@
+import { DriverStatus, Address, CreateDriverInput } from './driver.model';
 // src/modules/drivers/driver.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { DriverService } from './driver.service';
@@ -5,9 +6,9 @@ import { successResponse } from '../../shared/errorHandler';
 import { Server } from 'socket.io';
 import { logger } from '../../shared/logger';
 import { TripRepository } from '../trip/trip.repository';
-import { CreateDriverInput } from './driver.model';
 import { formFullName } from '../../utilities/helper';
 import { UserStatus } from '../../enums/user.enums';
+import { Driver } from './driver.model';
 
 export const DriverController = {
   async addDriver(req: Request, res: Response, next: NextFunction) {
@@ -196,7 +197,6 @@ export const DriverController = {
         to as string,
         status as string
       );
-
       // Map to frontend expected format
       const mappedActivity = activity.map((trip: any) => ({
         id: trip.id,
@@ -211,7 +211,7 @@ export const DriverController = {
         customer: { name: trip.passenger_name || 'Customer' }
       }));
 
-      return successResponse(res, 200, 'Ride activity fetched successfully', { data: mappedActivity });
+      return successResponse(res, 200, 'Ride activity fetched successfully', mappedActivity);
     } catch (err) {
       next(err);
     }
@@ -222,13 +222,14 @@ export const DriverController = {
       const driverId = req.params.id as string;
       const driver = await DriverService.getDriverById(driverId);
       const stats = await TripRepository.getStatsByDriverId(driverId);
+      const onlineHours = await DriverService.getOnlineHours(driverId);
 
       const performance = {
         rating: driver.rating || 4.8,
         acceptanceRate: 98,
         cancellationRate: stats.cancelled_trips > 0 ? (stats.cancelled_trips / stats.total_trips) * 100 : 2,
         totalTrips: stats.total_trips || 0,
-        onlineHours: 42,
+        onlineHours,
       };
 
       return successResponse(res, 200, 'Performance metrics fetched successfully', performance);
@@ -245,6 +246,8 @@ export const DriverController = {
       const summary = {
         totalEarnings: parseFloat(stats.total_earnings || 0),
         tripsCompleted: parseInt(stats.completed_trips || 0),
+        totalTrips: parseInt(stats.total_trips || 0),
+        cancelledTrips: parseInt(stats.cancelled_trips || 0),
         avgPerTrip: stats.completed_trips > 0 ? stats.total_earnings / stats.completed_trips : 0,
         tips: 450,
       };
@@ -272,16 +275,20 @@ export const DriverController = {
     try {
       const driverId = req.params.id as string;
       const activity = await TripRepository.findActivityByDriverId(driverId);
-
+      
       const transactions = activity.filter((t: any) => t.trip_status === 'COMPLETED').map((t: any) => ({
-        id: t.id,
+        id: t.trip_id || t.id,
+        title: 'Ride Earnings',
         amount: parseFloat(t.total_fare),
-        date: t.created_at,
-        type: 'RIDE_EARNING',
-        status: 'PAID'
+        date: new Date(t.created_at).toLocaleDateString(),
+        time: new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        pickup: t.pickup_address,
+        drop: t.drop_address,
+        distance: t.distance_km ? `${t.distance_km} km` : undefined,
+        status: 'Completed'
       }));
 
-      return successResponse(res, 200, 'Earnings transactions fetched successfully', { data: transactions });
+      return successResponse(res, 200, 'Earnings transactions fetched successfully', transactions);
     } catch (err) {
       next(err);
     }
@@ -291,7 +298,6 @@ export const DriverController = {
     try {
       const driverId = req.params.id as string;
       const driver = await DriverService.getDriverById(driverId);
-
       return successResponse(res, 200, 'Wallet transactions fetched successfully', { data: driver.creditUsage || [] });
     } catch (err) {
       next(err);
@@ -323,5 +329,15 @@ export const DriverController = {
     } catch (error: any) {
       return res.status(400).json({ success: false, message: error.message });
     }
-  }
+  },
+  async getTodayOverview(req: Request, res: Response, next: NextFunction) {
+    try {
+      const driverId = req.params.id as string;
+      const overview = await DriverService.getTodayOverview(driverId);
+      return successResponse(res, 200, "Today's overview fetched successfully", overview);
+    } catch (err) {
+      next(err);
+    }
+  },
+
 };

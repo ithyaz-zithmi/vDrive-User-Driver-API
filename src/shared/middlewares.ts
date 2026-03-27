@@ -22,13 +22,20 @@ const requestLogger = morgan('combined', {
 });
 
 // Rate Limiter
-const rateLimiter = rateLimit({
+const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { statusCode: 429, success: false, message: 'Too many requests' },
 });
+
+const rateLimiter = (req: Request, res: Response, next: NextFunction) => {
+  if (process.env.NODE_ENV === 'production') {
+    return limiter(req, res, next);
+  }
+  next();
+};
 
 // Security Middlewares
 const security = [helmet(), hpp()];

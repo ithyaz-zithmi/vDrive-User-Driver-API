@@ -40,4 +40,5 @@ export interface User {
   emergency_contacts?: EmergencyContact[];
   created_at?: Date;
   updated_at?: Date;
+  is_trip_verified?: boolean;
 }

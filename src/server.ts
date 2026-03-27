@@ -1,9 +1,9 @@
-// src/server.ts
+import config from './config';
 import app from './app';
 import { logger } from './shared/logger';
 import { connectDatabase } from './shared/database';
-import config from './config';
 import { initSocket } from './sockets/socket';
+import { initCronJobs } from './shared/cron';
 
 const PORT = config.port || 3000;
 
@@ -11,6 +11,8 @@ async function startServer() {
   try {
     await connectDatabase();
     logger.info('Database connected successfully');
+
+    initCronJobs();
 
     const server = app.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);

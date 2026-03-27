@@ -308,6 +308,18 @@ export const DriverRepository = {
 
     const driver = driverResult.rows[0];
 
+    // Get completed trips count
+    try {
+      const completedTripsResult = await query(
+        'SELECT COUNT(*) FROM trips WHERE driver_id = $1 AND trip_status = \'COMPLETED\'',
+        [id]
+      );
+      driver.total_trips = parseInt(completedTripsResult.rows[0].count);
+    } catch (error) {
+      console.error(`Error fetching total completed trips for driver ${id}:`, error);
+      driver.total_trips = 0;
+    }
+
 
     // Get documents
     const documentsResult = await query('SELECT * FROM driver_documents WHERE driver_id = $1', [
@@ -436,6 +448,7 @@ export const DriverRepository = {
       language: driver.language || 'en',
       is_vibration_enabled: driver.is_vibration_enabled ?? true,
       fcm_token: driver.fcm_token || null,
+      vdrive_id: driver.vdrive_id,
       created_at: driver.created_at,
       updated_at: driver.updated_at,
       documents: documents.map((doc) => ({
@@ -478,15 +491,7 @@ export const DriverRepository = {
       } : undefined,
     };
   },
-  /**
- * Dedicated method to update only the FCM token
- */
-  async updateFcmToken(driverId: string, fcmToken: string): Promise<void> {
-    await query(
-      'UPDATE drivers SET fcm_token = $1, updated_at = NOW() WHERE id = $2',
-      [fcmToken, driverId],
-    );
-  },
+
 
 
 
@@ -522,7 +527,6 @@ export const DriverRepository = {
       searchedRadius: radiusTiers[radiusTiers.length - 1]
     };
   },
-
   async findNearbyDrivers(lng: number, lat: number, radiusMeters: number) {
     const sqlQuery = `
        SELECT
@@ -552,8 +556,9 @@ export const DriverRepository = {
     const sqlQuery = `
             UPDATE drivers 
             SET 
-                current_latitude = $1, 
-                current_longitude = $2, 
+                current_lat = $1,
+                current_lng = $2,
+                location = ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography,
                 current_address = $3,
                 last_active = CURRENT_TIMESTAMP 
             WHERE id = $4 AND is_deleted = FALSE
@@ -567,5 +572,15 @@ export const DriverRepository = {
   async getFcmTokenById(id: string): Promise<string | null> {
     const result = await query('SELECT fcm_token FROM drivers WHERE id = $1', [id]);
     return result.rows[0]?.fcm_token || null;
+  },
+
+  /**
+   * Dedicated method to update only the FCM token
+   */
+  async updateFcmToken(driverId: string, fcmToken: string): Promise<void> {
+    await query(
+      'UPDATE drivers SET fcm_token = $1, updated_at = NOW() WHERE id = $2',
+      [fcmToken, driverId],
+    );
   },
 };

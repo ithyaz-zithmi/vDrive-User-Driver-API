@@ -1,4 +1,3 @@
-// src/modules/drivers/driver.routes.ts
 import { Router } from 'express';
 import { DriverController } from './driver.controller';
 import { createDriverValidator, findNearbyDriversValidator, getDriverValidator, getDriversValidator, updateDriverValidator } from './driver.validator';
@@ -31,6 +30,7 @@ router.get('/earnings/:id/summary', DriverController.getEarningsSummary);
 router.get('/earnings/:id/transactions', DriverController.getEarningsTransactions);
 router.get('/wallet/:id/balance', DriverController.getWalletBalance);
 router.get('/wallet/:id/transactions', DriverController.getWalletTransactions);
+router.get('/today-overview/:id', DriverController.getTodayOverview);
 router.post('/search', findNearbyDriversValidator, DriverController.findNearbyDrivers);
 
 export default router;

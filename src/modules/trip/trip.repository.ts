@@ -7,17 +7,46 @@ export const TripRepository = {
   //user-driver
   async findAll(): Promise<Trip[]> {
     const result = await query(
-      `SELECT t.*, COALESCE( jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) FILTER (WHERE tc.id IS NOT NULL),'[]'::jsonb) AS trip_changes 
-      FROM trips t LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id WHERE t.trip_status IN ('REQUESTED' ,'CANCELLED', 'COMPLETED') GROUP BY t.trip_id ORDER BY t.created_at DESC;`
+      `SELECT t.*, u.full_name AS passenger_name, COALESCE( jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) FILTER (WHERE tc.trip_id IS NOT NULL),'[]'::jsonb) AS trip_changes 
+      FROM trips t 
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id GROUP BY t.trip_id, u.full_name ORDER BY t.created_at DESC;`
     );
-    return result.rows || null;
+    return result.rows || [];
+  },
+
+  async findActiveRequests(bookingType?: string): Promise<Trip[]> {
+    let sql = `
+      SELECT t.*, u.full_name AS passenger_name 
+      FROM trips t 
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE t.trip_status = 'REQUESTED'
+    `;
+    const params: any[] = [];
+
+    if (bookingType) {
+      sql += ` AND t.booking_type = $1`;
+      params.push(bookingType);
+    }
+
+    // For scheduled rides, only show if starting within the next 24 hours OR already past start time but still requested
+    if (bookingType === 'SCHEDULED') {
+      sql += ` AND t.scheduled_start_time <= (NOW() + INTERVAL '24 hours')`;
+    }
+
+    sql += ` ORDER BY t.scheduled_start_time ASC, t.created_at DESC;`;
+
+    const result = await query(sql, params);
+    return result.rows || [];
   },
 
 
   async findById(id: string): Promise<Trip | null> {
     const result = await query(
-      `SELECT t.*, COALESCE(jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) FILTER (WHERE tc.id IS NOT NULL),'[]'::jsonb) AS trip_changes
-      FROM trips t LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id WHERE t.trip_id = $1 GROUP BY t.trip_id;`,
+      `SELECT t.*, u.full_name AS passenger_name, COALESCE(jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) FILTER (WHERE tc.trip_id IS NOT NULL),'[]'::jsonb) AS trip_changes
+      FROM trips t 
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id WHERE t.trip_id = $1 GROUP BY t.trip_id, u.full_name;`,
       [id]
     );
     return result.rows[0] || null;
@@ -56,6 +85,7 @@ export const TripRepository = {
 
 
   async createTrip(data: Partial<Trip>): Promise<Trip | null> {
+
     const result = await query(
       `
       INSERT INTO trips (user_id, ride_type, service_type,driver_allowance, trip_status, booking_type,is_for_self,passenger_details, original_scheduled_start_time, scheduled_start_time, pickup_lat, pickup_lng, pickup_address, drop_lat, drop_lng, drop_address, distance_km,trip_duration_minutes, base_fare, platform_fee, total_fare, paid_amount, payment_status, created_at, updated_at)
@@ -287,11 +317,11 @@ export const TripRepository = {
     const params: any[] = [driverId];
 
     if (from) {
-      sql += ` AND t.created_at >= $${params.length + 1}`;
+      sql += ` AND t.created_at::DATE >= $${params.length + 1}`;
       params.push(from);
     }
     if (to) {
-      sql += ` AND t.created_at <= $${params.length + 1}`;
+      sql += ` AND t.created_at::DATE <= $${params.length + 1}`;
       params.push(to);
     }
     if (status) {
@@ -333,4 +363,18 @@ export const TripRepository = {
     }
   },
 
+  
+  async findActiveByDriverId(driverId: string): Promise<Trip | null> {
+    const result = await query(
+      `SELECT t.*, u.full_name AS passenger_name 
+      FROM trips t
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE t.driver_id = $1 
+      AND t.trip_status IN ('ACCEPTED', 'ARRIVED', 'LIVE')
+      ORDER BY t.created_at DESC
+      LIMIT 1;`,
+      [driverId]
+    );
+    return result.rows[0] || null;
+  },
 };

@@ -7,6 +7,7 @@ const router = Router();
 
 // Admin 
 router.get('/', TripController.getAllTripsWithChanges);
+router.get('/active', TripController.getActiveTrip);
 
 //user-driver  
 router.get('/bytripid/:id', validateParams(TripValidation.idValidation), TripController.getTripById);
@@ -27,17 +28,11 @@ router.patch(
   validateBody(TripValidation.updateTripValidation),
   TripController.updateTrip
 );
-router.patch(
+router.post(
   '/cancel/:id',
   validateParams(TripValidation.idValidation),
   validateBody(TripValidation.cancelTripValidation),
   TripController.cancelTrip
-);
-
-router.post('/accept',
-  validateParams(TripValidation.idValidation),
-  validateBody(TripValidation.acceptTripValidation),
-  TripController.acceptTripController
 );
 
 //Tripchanges
@@ -58,5 +53,11 @@ router.post('/:id/start', validateParams(TripValidation.idValidation), TripContr
 router.post('/:id/arrived', validateParams(TripValidation.idValidation), TripController.arrivedTrip);
 router.post('/:id/complete', validateParams(TripValidation.idValidation), TripController.completeTrip);
 
+// Location History (trip replay)
+router.get('/:id/location-history', validateParams(TripValidation.idValidation), TripController.getTripLocationHistory);
+
+// Test Simulation
+router.post('/test-simulate-scheduled', TripController.testSimulateScheduled);
+router.post('/test-simulate-live', TripController.testSimulateLive);
 
 export default router;

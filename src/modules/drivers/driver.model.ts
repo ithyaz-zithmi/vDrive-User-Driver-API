@@ -135,6 +135,7 @@ export interface Driver {
   language?: string;
   is_vibration_enabled?: boolean;
   fcm_token?: string;
+  vdrive_id?: string;
   active_subscription?: {
     platform_subscription_id?: number;
     plan_name: string;
@@ -146,7 +147,7 @@ export interface Driver {
 
   current_lat?: number;
   current_lng?: number;
-  current_location?: string;
+  location?: string;
   current_heading?: number;
 }
 

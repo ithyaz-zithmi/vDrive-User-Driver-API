@@ -1,5 +1,7 @@
 // src/modules/users/user.service.ts
+import { query } from '../../shared/database';
 import { AuthRepository } from './auth.repository';
+import { DriverRepository } from '../drivers/driver.repository';
 import * as bcrypt from 'bcrypt';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import config from '../../config';
@@ -8,9 +10,8 @@ import { OnboardingStatus, UserRole, UserStatus } from '../../enums/user.enums';
 import { isInvalidUser } from '../../utilities/helper';
 import { User } from '../users/user.model';
 import { logger } from '../../shared/logger';
-import { DriverRepository } from '../drivers/driver.repository';
-import { query } from '../../shared/database';
 import { DriverNotifications, UserNotifications } from '../notifications';
+import axios from 'axios';
 
 interface VerifyOtpUser {
   phone_number: string;
@@ -110,16 +111,61 @@ export const AuthService = {
     role: string;
     device_id: string;
     allow_new_device: boolean;
-  }): Promise<{ expiresIn: number, userexists: boolean, userData: any, otp: any }> {
-    const TTL = config.auth.otpExpiryTime;
-    const MaxAttempt = config.auth.maxAttempts;
+  }): Promise<{ expiresIn: number, userexists: boolean, userData: any, otp: any  }> {
+    
+    const {
+      otpExpiryTime: TTL,
+      maxAttempts: MaxAttempt,
+      otpRequestLimit,
+      otpRequestWindow,
+      otpBlockDuration,
+    } = config.auth;
 
     try {
-      // Verify existing user
-      const userData = await AuthRepository.getUser(phone_number, role);
-      const isExistingUser = !!userData;
+      // Get existing OTP data for security checks
+      const otpData = (await AuthRepository.getOtpData(phone_number, role)) as any;
+     
+      // 1. Check if currently blocked
+      if (otpData?.blocked_until && new Date() < new Date(otpData.blocked_until)) {
+        const remainingTime = Math.max(
+          1,
+          Math.ceil((new Date(otpData.blocked_until).getTime() - Date.now()) / (60 * 1000))
+        );
+        throw {
+          statusCode: 429,
+          message: `Too many attempts. Please try again after ${remainingTime} minutes.`,
+        };
+      }
 
-      if (isExistingUser && userData) {
+      // 2. Handle Request Rate Limiting
+      let currentRequestCount = otpData?.request_count || 0;
+      const lastRequestedAt = otpData?.last_requested_at ? new Date(otpData.last_requested_at) : null;
+      const now = new Date();
+
+      if (
+        lastRequestedAt &&
+        now.getTime() - lastRequestedAt.getTime() < otpRequestWindow * 60 * 1000
+      ) {
+        // Within window
+        currentRequestCount++;
+        if (currentRequestCount > otpRequestLimit) {
+          const blockUntil = new Date(now.getTime() + otpBlockDuration * 60 * 1000);
+          await AuthRepository.blockUser(phone_number, role, blockUntil);
+          throw {
+            statusCode: 429,
+            message: `OTP request limit exceeded. You are blocked for ${otpBlockDuration} minutes.`,
+          };
+        }
+      } else {
+        // Outside window or first request, reset count
+        currentRequestCount = 1;
+      }
+
+      // Verify existing user
+      let userData = await AuthRepository.getUser(phone_number, role);
+      let isExistingUser = !!userData;
+
+       if (isExistingUser && userData) {
         const userId = userData.id as string; // ✅ assert type
 
         if (!userId) {
@@ -127,7 +173,7 @@ export const AuthService = {
         }
 
         // ✅ Pass userId (guaranteed string) and device_id
-        const activeSession = await AuthRepository.getActiveSession(userId, device_id);
+        const activeSession = await AuthRepository.getActiveSession(userId,role, device_id);
 
         if (activeSession) {
           if (!allow_new_device) {
@@ -141,37 +187,46 @@ export const AuthService = {
         }
       }
 
-      // Handle brute force attempt
-      const attempt_count = await AuthRepository.verifyAttemptCount(phone_number, role);
-      if (attempt_count > MaxAttempt) {
-        throw {
-          statusCode: 500,
-          message: `${role} - [${phone_number}] exceeds maximum verification attempts`,
-          detail: `${role} - [${phone_number}] exceeds maximum verification attempts`,
-        };
+      if (isExistingUser && role === 'driver') {
+        const driverId = (userData as any).driverId || userData?.id;
+        if (driverId) {
+          const mappedDriver = await DriverRepository.findById(driverId);
+          if (mappedDriver) {
+            userData = mappedDriver as any;
+          }
+        }
       }
+
 
       // Generate otp and hash it
       const otpLength = role === 'driver' ? 6 : 4;
       const otp = AuthService.genNumericOTP(otpLength);
       const otpHash = await AuthService.hashValue(otp);
 
-      console.log(`otp for ${phone_number} is ${otp}`);
+      logger.info('------------------------------------------');
+      logger.info(`| OTP for ${phone_number} is | ${otp} |`);
+      logger.info('------------------------------------------');
       const expires_at = new Date(Date.now() + TTL * 60 * 1000);
 
       // Save otp hash
-      await AuthRepository.saveHashedOtp(phone_number, role, otpHash, expires_at, attempt_count);
+      await AuthRepository.saveHashedOtp(phone_number, role, otpHash, expires_at, 1,
+        currentRequestCount);
       if (userData?.fcm_token) {
         await UserNotifications.otpSent(userData.fcm_token);
       }
 
-      return { expiresIn: TTL, userexists: isExistingUser, userData: userData?.full_name, otp: otp };
+      return { 
+        expiresIn: TTL, 
+        userexists: isExistingUser, 
+        userData: userData?.full_name, 
+        otp: otp 
+      };
     } catch (err: any) {
       if (err.statusCode) throw err;
       throw {
         statusCode: 500,
         message: 'Failed to send OTP',
-        detail: err,
+        detail: err?.message || JSON.stringify(err),
       };
     }
   },
@@ -182,8 +237,11 @@ export const AuthService = {
 
   async verifyOtp({ phone_number, role, otp, device_id, allow_new_device, fcm_token }: VerifyOtpUser) {
     try {
+      logger.info(`OTP verification attempt for: ${phone_number} with role: ${role}`);
+      const { maxAttempts: MaxAttempt, otpBlockDuration } = config.auth;
+
       // Get otp data
-      const otpData = await AuthRepository.getOtpData(phone_number, role);
+      const otpData = (await AuthRepository.getOtpData(phone_number, role)) as any;
       if (!otpData) {
         throw {
           statusCode: 400,
@@ -191,7 +249,19 @@ export const AuthService = {
         };
       }
 
-      const { otp_hash, expires_at } = otpData;
+      // Check if blocked
+      if (otpData.blocked_until && new Date() < new Date(otpData.blocked_until)) {
+        const remainingTime = Math.max(
+          1,
+          Math.ceil((new Date(otpData.blocked_until).getTime() - Date.now()) / (60 * 1000))
+        );
+        throw {
+          statusCode: 429,
+          message: `Account is temporarily locked due to too many failed attempts. Try again after ${remainingTime} minutes.`,
+        };
+      }
+
+      const { otp_hash, expires_at, attempt_count } = otpData;
 
       // Check expiry
       if (new Date() > new Date(expires_at)) {
@@ -208,9 +278,18 @@ export const AuthService = {
         // increase attempt_count
         await AuthRepository.incrementAttemptCount(phone_number, role);
 
+        if (attempt_count + 1 >= MaxAttempt) {
+          const blockUntil = new Date(Date.now() + otpBlockDuration * 60 * 1000);
+          await AuthRepository.blockUser(phone_number, role, blockUntil);
+          throw {
+            statusCode: 429,
+            message: `Too many failed attempts. Account locked for ${otpBlockDuration} minutes.`,
+          };
+        }
+
         throw {
           statusCode: 400,
-          message: 'Invalid OTP',
+          message: `Invalid OTP. You have ${MaxAttempt - (attempt_count + 1)} attempts left.`,
         };
       }
 
@@ -264,6 +343,18 @@ export const AuthService = {
       // Create new user/driver if not exists
       if (!isExistingUser) {
         userData = await createNewUser(role, phone_number, device_id) as any;
+        if(role === 'driver'){
+        try {
+          const webhookUrl = process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
+          axios.post(webhookUrl, {
+            eventType: 'NEW_DRIVER',
+            message: `New Driver ${phone_number} Registered`,
+            data: userData
+          }).catch(err => logger.error(`Webhook trigger failed: ${err.message}`));
+        } catch (e) {
+          // Ignore
+        }
+        }
         if (!userData?.id) {
           throw { statusCode: 500, message: 'Failed to create user' };
         }
@@ -289,7 +380,7 @@ export const AuthService = {
 
       const payload: JwtPayload & { id: string; deviceId: string; role: string } = {
         id: userId,
-        deviceId: device_id,
+        deviceId: device_id || userData?.device_id || 'unknown',
         role,
       };
       const tokens = AuthService.generateTokens(payload);
@@ -309,13 +400,17 @@ export const AuthService = {
         isNewUser: !isExistingUser,
         accessToken,
         refreshToken,
+        onboarding_status: (userData as any)?.onboarding_status || 'PHONE_VERIFIED', // Ensure status is returned
       };
     } catch (error: any) {
-      if (error.statusCode) throw error;
+      console.error('OTP Verification Error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
       throw {
         statusCode: 500,
-        message: 'Failed to Verify OTP',
-        detail: error,
+        message: 'Failed to verify OTP',
+        detail: error.message || error,
       };
     }
   },
@@ -346,7 +441,14 @@ export const AuthService = {
       }
 
       // Check if user exists
-      const userData = await UserRepository.findById(decoded.id, UserStatus.DELETED);
+      let userData = await UserRepository.findById(decoded.id, UserStatus.DELETED);
+
+      if (!userData) {
+        const driver = await DriverRepository.findById(decoded.id);
+        if (driver) {
+          userData = { ...driver, id: driver.driverId } as any;
+        }
+      }
 
       if (userData?.device_id !== device_id) {
         throw { statusCode: 404, message: 'Invalid Device login' };
@@ -385,9 +487,14 @@ export const AuthService = {
   },
 
   async getMe(userId: string): Promise<User | null> {
-    // return await UserRepository.findById(userId, UserStatus.DELETED);
-    return await UserRepository.findById(userId, UserStatus.ACTIVE);
+    const user = await UserRepository.findById(userId, UserStatus.ACTIVE);
+    if (user) return user;
 
+    const driver = await DriverRepository.findById(userId);
+    if (driver) {
+      return { ...driver, id: driver.driverId } as any;
+    }
+    return null;
   },
 
   async verifyUser(phone_number: string, role: UserRole): Promise<boolean> {

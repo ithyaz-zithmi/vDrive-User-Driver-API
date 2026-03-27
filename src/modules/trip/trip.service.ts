@@ -3,7 +3,6 @@ import { Trip } from './trip.model';
 import { TripRepository } from './trip.repository';
 import { TripChanges } from './tripChanges.model';
 import { query } from '../../shared/database';
-import { notificationService, PushPayload } from '../../services/notificationService';
 import { UserRepository } from '../users/user.repository';
 import { TripTransactionService } from '../triptransactions/triptransaction.service';
 import { ActorType, TripEventType } from '../../enums/triptransaction.enums';
@@ -19,9 +18,14 @@ import { logger } from '../../shared/logger';
 const tripBroadcastTimers = new Map<string, NodeJS.Timeout>();
 
 export const TripService = {
-  async getTrips() {
-    return await TripRepository.findAll();
+  async getTrips(bookingType?: string) {
+    if (bookingType) {
+      return await TripRepository.findActiveRequests(bookingType);
+    }
+    // Default to active requests for the general driver feed if no type specified
+    return await TripRepository.findActiveRequests();
   },
+
   async getAllTripsWithChanges() {
     return await TripRepository.getAllTripsWithChanges();
   },
@@ -42,8 +46,14 @@ export const TripService = {
     return trip;
   },
   async createTrip(data: Partial<Trip>) {
+    // Generate a 4-digit OTP
+    data.otp = Math.floor(1000 + Math.random() * 9000).toString();
+
     const trip = await TripRepository.createTrip(data);
-    console.log(trip, "trip");
+    if (!trip) {
+      throw { statusCode: 500, message: 'Trip creation failed' };
+    }
+
     if (trip) {
       await TripTransactionService.logEvent({
         trip_id: trip.trip_id,
@@ -61,10 +71,9 @@ export const TripService = {
         },
       });
     }
-    if (!trip) {
-      throw { statusCode: 404, message: 'User not found' };
-    }
+
     return trip;
+    
   },
 
   async updateTrip(id: string, data: Partial<Trip>) {
@@ -98,6 +107,7 @@ export const TripService = {
 
     return trip;
   },
+
 
   async createTripChanges(data: TripChanges) {
     const tripChanges = await TripRepository.createTripChanges(data);
