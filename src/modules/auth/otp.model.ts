@@ -6,4 +6,7 @@ export interface OTP {
   created_at: Date;
   expires_at: Date;
   attempt_count: number;
+  blocked_until: Date | null;
+  request_count: number;
+  last_requested_at: Date | null;
 }

@@ -1,4 +1,5 @@
 import {
+  BookingType,
   CancelBy,
   CancelReason,
   PaymentStatus,
@@ -14,6 +15,7 @@ export interface Trip {
   vehicle_id?: string;
   ride_type: RideType;
   service_type: ServiceType;
+  booking_type: BookingType;
   trip_status: TripStatus;
   original_scheduled_start_time: Date;
   scheduled_start_time?: Date;
@@ -41,6 +43,7 @@ export interface Trip {
   rating?: number;
   re_route_id?: string;
   feedback?: string;
+  otp?: string;
   assigned_at?: Date;
   started_at?: Date;
   ended_at?: Date;

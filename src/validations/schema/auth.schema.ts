@@ -16,7 +16,6 @@ export const refreshTokenRule = Joi.string().required().messages({
   'any.required': 'Refresh token is required.',
 });
 
-export const allowNewDeviceRule = Joi.boolean().required().messages({
+export const allowNewDeviceRule = Joi.boolean().optional().messages({
   'boolean.base': 'allowNewDevice must be a boolean value',
-  'any.required': 'Allow New Device is required.',
 });

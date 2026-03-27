@@ -33,7 +33,7 @@ export const UserController = {
 
   async getUserById(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.getUserById(req.params.id);
+      const user = await UserService.getUserById(req.params.id as string);
       return successResponse(res, 200, 'User fetched successfully', user);
     } catch (err: any) {
       logger.error(`getUserById error: ${err.message}`);
@@ -70,7 +70,7 @@ export const UserController = {
     try {
       const { id } = req.params;
 
-      const existingUser = await UserService.getUserById(id);
+      const existingUser = await UserService.getUserById(id as string);
       if (!existingUser) {
         throw { statusCode: 404, message: 'User not found' };
       }
@@ -94,7 +94,7 @@ export const UserController = {
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);
       const updateData = cleanUndefined(updateUserData);
-      const updatedUser = await UserService.updateUser(id, updateData);
+      const updatedUser = await UserService.updateUser(id as string, updateData);
 
       return successResponse(res, 200, 'User updated successfully', updatedUser);
     } catch (err: any) {
@@ -105,7 +105,7 @@ export const UserController = {
 
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.deleteUser(req.params.id);
+      const user = await UserService.deleteUser(req.params.id as string);
       return successResponse(res, 200, 'User deleted successfully', user);
     } catch (err: any) {
       logger.error(`deleteUser error: ${err.message}`);
@@ -115,7 +115,7 @@ export const UserController = {
 
   async blockUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.blockUser(req.params.id);
+      const user = await UserService.blockUser(req.params.id as string);
       return successResponse(res, 200, 'User blocked successfully', user);
     } catch (err: any) {
       logger.error(`blockUser error: ${err.message}`);
@@ -125,7 +125,7 @@ export const UserController = {
 
   async unblockUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.unblockUser(req.params.id);
+      const user = await UserService.unblockUser(req.params.id as string);
       return successResponse(res, 200, 'User unblocked successfully', user);
     } catch (err: any) {
       logger.error(`unblockUser error: ${err.message}`);
@@ -135,7 +135,7 @@ export const UserController = {
 
   async disableUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.disableUser(req.params.id);
+      const user = await UserService.disableUser(req.params.id as string);
       return successResponse(res, 200, 'User disabled successfully', user);
     } catch (err: any) {
       logger.error(`disableUser error: ${err.message}`);
