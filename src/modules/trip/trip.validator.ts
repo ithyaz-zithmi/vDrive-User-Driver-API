@@ -11,6 +11,7 @@ export const TripValidation = {
     user_id: tripSchema.userIdRule,
     ride_type: tripSchema.rideTypeRule,
     service_type: tripSchema.serviceTypeRule,
+    booking_type: tripSchema.bookingTypeRule,
     trip_status: tripSchema.tripStatusRule,
     original_scheduled_start_time: tripSchema.originalScheduledStartTimeRule,
     pickup_lat: tripSchema.pickupLatRule,

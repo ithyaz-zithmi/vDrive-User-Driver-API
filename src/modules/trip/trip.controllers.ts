@@ -4,11 +4,14 @@ import { successResponse } from '../../shared/errorHandler';
 import { Trip } from './trip.model';
 import { logger } from '../../shared/logger';
 import { cleanUndefined } from '../../utilities/helper';
+import { v4 as uuidv4 } from 'uuid';
+import { RideType, ServiceType, BookingType, TripStatus } from '../../enums/trip.enums';
 
 export const TripController = {
   async getTrips(req: Request, res: Response, next: NextFunction) {
     try {
-      const trips = await TripService.getTrips();
+      const { booking_type } = req.query;
+      const trips = await TripService.getTrips(booking_type as string);
       if (!trips) {
         throw { statusCode: 204, message: 'Trip data are Empty' };
       }
@@ -21,7 +24,7 @@ export const TripController = {
 
   async getTripById(req: Request, res: Response, next: NextFunction) {
     try {
-      const trip = await TripService.getTripById(req?.params?.id);
+      const trip = await TripService.getTripById(req?.params?.id as string);
       return successResponse(res, 200, 'Trip fetched successfully', trip);
     } catch (err: any) {
       logger.error(`getTripById error: ${err.message}`);
@@ -71,7 +74,7 @@ export const TripController = {
         throw { statusCode: 400, message: 'At least one field must be provided to update' };
       }
 
-      const updatedTrip = await TripService.updateTrip(id, updateData);
+      const updatedTrip = await TripService.updateTrip(id as string, updateData);
 
       if (!updatedTrip) {
         throw { statusCode: 400, message: 'Trip not found' };
@@ -90,6 +93,260 @@ export const TripController = {
       return successResponse(res, 201, 'Trip Changes created successfully', tripChanges);
     } catch (err: any) {
       logger.error(`createTripChanges error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async acceptTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const driverId = req.body.driver_id || (req as any).user?.id;
+      if (!driverId) throw { statusCode: 400, message: 'driver_id is required' };
+
+      const trip = await TripService.acceptTrip(id as string, driverId);
+      return successResponse(res, 200, 'Trip accepted successfully', trip);
+    } catch (err: any) {
+      logger.error(`acceptTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async startTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.startTrip(id as string);
+      return successResponse(res, 200, 'Trip started successfully', trip);
+    } catch (err: any) {
+      logger.error(`startTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async cancelTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { cancel_reason, cancel_by } = req.body;
+      const trip = await TripService.cancelTrip(id as string, cancel_reason, cancel_by);
+      return successResponse(res, 200, 'Trip cancelled successfully', trip);
+    } catch (err: any) {
+      logger.error(`cancelTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async completeTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.completeTrip(id as string);
+      return successResponse(res, 200, 'Trip completed successfully', trip);
+    } catch (err: any) {
+      logger.error(`completeTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async arrivedTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.arrivedTrip(id as string);
+      return successResponse(res, 200, 'Driver arrived at pickup successfully', trip);
+    } catch (err: any) {
+      logger.error(`arrivedTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async testSimulateScheduled(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { driver_id, vehicle_id } = req.body;
+      if (!driver_id) throw { statusCode: 400, message: 'driver_id is required for simulation' };
+
+      const { DriverRepository } = require('../drivers/driver.repository');
+      const driver = await DriverRepository.findById(driver_id);
+
+      if (!driver || !driver.fcm_token) {
+        throw { statusCode: 400, message: 'Driver not found or has no FCM token' };
+      }
+
+      // 0. Force Verify for testing if requested
+      if (req.body.forceVerify) {
+        const { TripVerificationService } = require('../drivers/trip-verification.service');
+        await TripVerificationService.testForceVerifyDriver(driver_id);
+        logger.info(`Driver ${driver_id} force verified for scheduled simulation`);
+      }
+
+      // 1. Create a dummy trip in DB
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const tripData: Partial<Trip> = {
+        trip_id: uuidv4(),
+        user_id: 'a5010ad7-c629-4db9-841c-6fd29c8e14a4', // Demo user
+        vehicle_id: vehicle_id || null,
+        ride_type: RideType.OUTSTATION,
+        service_type: ServiceType.DRIVER_ONLY,
+        trip_status: TripStatus.REQUESTED,
+        scheduled_start_time: tomorrow,
+        original_scheduled_start_time: tomorrow,
+        pickup_lat: 13.0732,
+        pickup_lng: 80.2609,
+        pickup_address: 'Egmore, Chennai, Tamil Nadu, India',
+        drop_lat: 12.9830,
+        drop_lng: 80.2594,
+        drop_address: 'Thiruvanmiyur, Chennai, Tamil Nadu, India',
+        distance_km: 13.90,
+        base_fare: 300.00,
+        driver_allowance: 99.95,
+        platform_fee: 1.00,
+        total_fare: 399.95,
+        booking_type: BookingType.SCHEDULED,
+      };
+
+      const trip = await TripService.createTrip(tripData);
+
+      // 2. Dispatch FCM specifically to this driver
+      const { NotificationService } = require('../notifications/notification.service');
+
+      await NotificationService.sendNotification(
+        driver.fcm_token,
+        'Scheduled Ride Request',
+        `A new scheduled outstation trip is available.`,
+        {
+          type: 'ride_request',
+          trip_id: trip.trip_id,
+          pickup_address: trip.pickup_address,
+          drop_address: trip.drop_address,
+          pickup_lat: trip.pickup_lat.toString(),
+          pickup_lng: trip.pickup_lng.toString(),
+          drop_lat: trip.drop_lat.toString(),
+          drop_lng: trip.drop_lng.toString(),
+          total_fare: trip.total_fare?.toString() || '₹--',
+          distance_km: trip.distance_km?.toString() + ' km',
+          trip_duration_minutes: trip.trip_duration_minutes?.toString() + ' min',
+          ride_type: trip.ride_type,
+          booking_type: trip.booking_type,
+          service_type: trip.service_type,
+          otp: trip.otp || '',
+          scheduled_start_time: trip.scheduled_start_time?.toISOString() || '',
+        }
+      );
+
+      return successResponse(res, 200, 'Simulated scheduled trip created and dispatched to driver', trip);
+    } catch (err: any) {
+      logger.error(`testSimulateScheduled error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async testSimulateLive(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { driver_id, vehicle_id } = req.body;
+      if (!driver_id) throw { statusCode: 400, message: 'driver_id is required for simulation' };
+
+      const { DriverRepository } = require('../drivers/driver.repository');
+      const driver = await DriverRepository.findById(driver_id);
+
+      if (!driver || !driver.fcm_token) {
+        throw { statusCode: 400, message: 'Driver not found or has no FCM token' };
+      }
+
+      // 0. Force Verify for testing if requested
+      if (req.body.forceVerify) {
+        const { TripVerificationService } = require('../drivers/trip-verification.service');
+        await TripVerificationService.testForceVerifyDriver(driver_id);
+        logger.info(`Driver ${driver_id} force verified for live simulation`);
+      }
+
+      // 1. Create a dummy trip in DB
+      const tripData: Partial<Trip> = {
+        trip_id: uuidv4(),
+        user_id: 'a5010ad7-c629-4db9-841c-6fd29c8e14a4',
+        vehicle_id: vehicle_id || null,
+        ride_type: RideType.ONE_WAY,
+        service_type: ServiceType.DRIVER_ONLY,
+        trip_status: TripStatus.REQUESTED,
+        scheduled_start_time: new Date(),
+        original_scheduled_start_time: new Date(),
+        pickup_lat: 13.0732,
+        pickup_lng: 80.2609,
+        pickup_address: 'Egmore, Chennai, Tamil Nadu, India',
+        drop_lat: 12.9830,
+        drop_lng: 80.2594,
+        drop_address: 'Thiruvanmiyur, Chennai, Tamil Nadu, India',
+        distance_km: 13.90,
+        base_fare: 300.00,
+        driver_allowance: 99.95,
+        platform_fee: 1.00,
+        total_fare: 399.95,
+        booking_type: BookingType.LIVE,
+      };
+
+      const trip = await TripService.createTrip(tripData);
+
+      // 2. Dispatch FCM specifically to this driver
+      const { NotificationService } = require('../notifications/notification.service');
+
+      await NotificationService.sendNotification(
+        driver.fcm_token,
+        'New Ride Request',
+        `A passenger requested a ride near you.`,
+        {
+          type: 'ride_request',
+          trip_id: trip.trip_id,
+          pickup_address: trip.pickup_address,
+          drop_address: trip.drop_address,
+          pickup_lat: trip.pickup_lat.toString(),
+          pickup_lng: trip.pickup_lng.toString(),
+          drop_lat: trip.drop_lat.toString(),
+          drop_lng: trip.drop_lng.toString(),
+          total_fare: trip.total_fare?.toString() || '₹--',
+          distance_km: trip.distance_km?.toString() + ' km',
+          trip_duration_minutes: trip.trip_duration_minutes?.toString() + ' min',
+          ride_type: trip.ride_type,
+          booking_type: trip.booking_type,
+          service_type: trip.service_type,
+          otp: trip.otp || '',
+        }
+      );
+
+      return successResponse(res, 200, 'Simulated live trip created and dispatched to driver', trip);
+    } catch (err: any) {
+      logger.error(`testSimulateLive error: ${err.message}`);
+      next(err);
+    }
+  },
+  
+  async getActiveTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const driverId = req.query.driver_id || (req as any).user?.id;
+      if (!driverId) throw { statusCode: 400, message: 'driver_id is required' };
+
+      const trip = await TripService.getActiveTrip(driverId as string);
+      return successResponse(res, 200, 'Active trip fetched successfully', trip);
+    } catch (err: any) {
+      logger.error(`getActiveTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async getTripLocationHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { LocationHistoryRepository } = require('../drivers/locationHistory.repository');
+
+      const [points, summary] = await Promise.all([
+        LocationHistoryRepository.getByTripId(id),
+        LocationHistoryRepository.getTripRouteSummary(id),
+      ]);
+
+      return successResponse(res, 200, 'Trip location history fetched', {
+        trip_id: id,
+        total_points: points.length,
+        summary,
+        points,
+      });
+    } catch (err: any) {
+      logger.error(`getTripLocationHistory error: ${err.message}`);
       next(err);
     }
   },

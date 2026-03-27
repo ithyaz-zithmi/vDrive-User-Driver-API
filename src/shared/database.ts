@@ -36,3 +36,10 @@ export const query = async (text: string, params?: any[]) => {
   }
   return pool.query(text, params);
 };
+
+export const getClient = async () => {
+  if (!pool) {
+    throw new Error('Database not connected. Call connectDatabase first.');
+  }
+  return pool.connect();
+};

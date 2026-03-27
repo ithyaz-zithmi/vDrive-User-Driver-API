@@ -12,6 +12,8 @@ export interface User {
   status: UserStatus;
   email?: string;
   device_id: string;
+  fcm_token?: string;
   created_at?: Date;
   updated_at?: Date;
+  is_trip_verified?: boolean;
 }

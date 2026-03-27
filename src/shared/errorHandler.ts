@@ -42,6 +42,18 @@ export const successResponse = (
     .json(buildResponse(statusCode, true, message, data, null, requestId));
 };
 
+export const errorResponse = (
+  res: Response,
+  statusCode: number,
+  message: string,
+  error: any = null,
+  requestId?: string
+) => {
+  return res
+    .status(statusCode)
+    .json(buildResponse(statusCode, false, message, null, error, requestId));
+};
+
 export const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
   const requestId = (req as any).requestId || uuidv4();
   let statusCode = err.statusCode || 500;

@@ -3,6 +3,13 @@
 export type DriverRole = string;
 export type DriverStatus = string;
 
+export interface DocumentUrl {
+  url?: string;
+  front?: string;
+  back?: string;
+  [key: string]: string | undefined;
+}
+
 export interface Address {
   street: string;
   city: string;
@@ -11,8 +18,16 @@ export interface Address {
   pincode: string;
 }
 
+export enum DriverAvailabilityStatus {
+  OFFLINE = 'OFFLINE',
+  ONLINE = 'ONLINE',
+  ON_TRIP = 'ON_TRIP',
+  HAS_UPCOMING_SCHEDULED = 'HAS_UPCOMING_SCHEDULED',
+}
+
 export interface Availability {
   online: boolean;
+  status: DriverAvailabilityStatus;
   lastActive: string | null;
 }
 
@@ -47,23 +62,12 @@ export interface CreditUsage {
   createdAt: string;
 }
 
-export interface Vehicle {
-  vehicleId: string;
-  vehicleNumber: string;
-  vehicleModel: string;
-  vehicleType: string;
-  fuelType: string;
-  registrationDate: string;
-  insuranceExpiry: string;
-  rcDocumentUrl: string;
-  status: boolean;
-}
 
 export interface Document {
   documentId: string;
   documentType: string;
   documentNumber: string;
-  documentUrl: string;
+  documentUrl: DocumentUrl;
   licenseStatus: string;
   expiryDate: string;
 }
@@ -112,12 +116,34 @@ export interface Driver {
   creditUsage?: CreditUsage[];
   created_at?: string;
   updated_at?: string;
-  vehicle?: Vehicle | null;
   documents?: Document[];
+  onboarding_status?:
+  | 'PHONE_VERIFIED'
+  | 'PROFILE_COMPLETED'
+  | 'ADDRESS_COMPLETED'
+  | 'DOCS_SUBMITTED'
+  | 'DOCUMENTS_APPROVED'
+  | 'SUBSCRIPTION_ACTIVE'
+  | 'DOCS_REJECTED' // Keep for backward compatibility or rejection flow
+  | 'ACTIVE'; // Legacy?
+  documents_submitted?: boolean;
   performance?: Performance;
   payments?: Payments;
   activityLogs?: ActivityLog[];
-  last_active?:string;
+  last_active?: string;
+  is_trip_verified?: boolean;
+  language?: string;
+  is_vibration_enabled?: boolean;
+  fcm_token?: string;
+  vdrive_id?: string;
+  active_subscription?: {
+    platform_subscription_id?: number;
+    plan_name: string;
+    billing_cycle: string;
+    start_date: string;
+    expiry_date: string;
+    status: string;
+  };
 }
 
 export interface CreateDriverInput {
@@ -134,27 +160,53 @@ export interface CreateDriverInput {
   address: Address;
   role: DriverRole;
   status: DriverStatus;
-  vehicle?: Omit<Vehicle, 'vehicleId'>;
   documents?: Omit<Document, 'documentId'>[];
   kyc_status?: KYC;
+  onboarding_status?:
+  | 'PHONE_VERIFIED'
+  | 'PROFILE_COMPLETED'
+  | 'ADDRESS_COMPLETED'
+  | 'DOCS_SUBMITTED'
+  | 'DOCUMENTS_APPROVED'
+  | 'SUBSCRIPTION_ACTIVE'
+  | 'DOCS_REJECTED'
+  | 'ACTIVE';
+  documents_submitted?: boolean;
   credit?: Credit;
   availability?: Availability;
   performance?: Performance;
   payments?: Payments;
+  is_trip_verified?: boolean;
+  language?: string;
+  is_vibration_enabled?: boolean;
+  fcm_token?: string;
 }
 
 export interface UpdateDriverInput extends Partial<
   Omit<
     CreateDriverInput,
-    'vehicle' | 'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'
+    'documents' | 'kyc' | 'credit' | 'availability' | 'performance' | 'payments'
   >
 > {
   driverId?: string;
-  vehicle?: Partial<Vehicle>;
   documents?: Partial<Document>[];
   kyc?: Partial<KYC>;
   credit?: Partial<Credit>;
   availability?: Partial<Availability>;
   performance?: Partial<Performance>;
   payments?: Partial<Payments>;
+  onboarding_status?:
+  | 'PHONE_VERIFIED'
+  | 'PROFILE_COMPLETED'
+  | 'ADDRESS_COMPLETED'
+  | 'DOCS_SUBMITTED'
+  | 'DOCUMENTS_APPROVED'
+  | 'SUBSCRIPTION_ACTIVE'
+  | 'DOCS_REJECTED'
+  | 'ACTIVE';
+  documents_submitted?: boolean;
+  is_trip_verified?: boolean;
+  language?: string;
+  is_vibration_enabled?: boolean;
+  fcm_token?: string;
 }
