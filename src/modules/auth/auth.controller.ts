@@ -297,6 +297,7 @@ export const AuthController = {
       if (device_id) {
         const shouldForceLogout = await AuthRepository.checkForceLogout(
           userId,
+          role as string,
           device_id
         );
         if (shouldForceLogout) {
@@ -309,7 +310,7 @@ export const AuthController = {
       }
 
       // ✅ 2. Check active session exists
-      const session = await AuthRepository.getSessionByDevice(userId, device_id);
+      const session = await AuthRepository.getSessionByDevice(userId, role as string, device_id);
       if (!session || !session.is_active) {
         return res.status(401).json({
           success: false,

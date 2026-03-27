@@ -230,14 +230,14 @@ export const AuthService = {
       // Check active session on another device
       // ✅ Device conflict check — only for DIFFERENT devices
       if (isExistingUser && userData) {
-        const userId = userData.id as string;
+        const userId = userData.id as string || (userData as any).driverId;
 
         if (!userId) {
           throw { statusCode: 500, message: 'User ID not found' };
         }
 
         // ✅ Exclude current device — same device re-login won't conflict
-        const activeSession = await AuthRepository.getActiveSession(userId, device_id);
+        const activeSession = await AuthRepository.getActiveSession(userId, role, device_id);
 
         if (activeSession) {
           if (!allow_new_device) {
@@ -250,7 +250,7 @@ export const AuthService = {
           const oldDeviceId = activeSession.device_id;
           const oldFcmToken = activeSession.fcm_token;
 
-          await AuthRepository.invalidateAllSessions(userId, device_id);
+          await AuthRepository.invalidateAllSessions(userId, role, device_id);
 
           // ✅ Pass role
           await AuthService.notifyDeviceLogout(userId, oldDeviceId, role, oldFcmToken);
@@ -271,9 +271,20 @@ export const AuthService = {
       }
 
       // Generate tokens for ALL users (new and existing)
-      const userId = userData?.id as string;
-      if (!userId) {
-        throw { statusCode: 500, message: 'User ID missing' };
+      let userId: string;
+      if (role === 'customer') {
+        userId = userData?.id as string;
+        if (!userId) {
+          throw { statusCode: 500, message: 'User ID missing' };
+        }
+      } else if (role === 'driver') {
+        userId = (userData as any).driverId || userData?.id;
+        if (!userId) {
+          throw { statusCode: 500, message: 'Driver ID missing' };
+        }
+      }
+      else {
+        throw { statusCode: 500, message: 'Invalid role' };
       }
 
       const payload: JwtPayload & { id: string; deviceId: string; role: string } = {
@@ -309,7 +320,7 @@ export const AuthService = {
     }
   },
 
-  generateTokens(payload: JwtPayload & { id: string; deviceId: string }) {
+  generateTokens(payload: JwtPayload & { id: string; deviceId: string; role: string }) {
     const accessTokenOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
     const refreshTokenOptions: SignOptions = { expiresIn: config.jwt.refreshExpiresIn };
 
@@ -326,6 +337,8 @@ export const AuthService = {
     try {
       const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as JwtPayload & {
         id: string;
+        role: string;
+        deviceId: string;
       };
 
       if (!decoded?.id && !decoded?.deviceId) {
@@ -344,10 +357,23 @@ export const AuthService = {
         throw { statusCode: 500, message: 'Invalid user record: missing ID' };
       }
 
+      // ✅ Check session exists and is active for this role
+      const session = await AuthRepository.getSessionByDevice(decoded.id, decoded.role, device_id);
+      if (!session || !session.is_active) {
+        throw { statusCode: 401, message: 'Session expired or invalidated' };
+      }
+
+      // ✅ Validate refresh token
+      const isValid = await AuthRepository.validateRefreshToken(decoded.id, decoded.role, device_id, refreshToken);
+      if (!isValid) {
+        throw { statusCode: 401, message: 'Invalid refresh token' };
+      }
+
       // Generate new access token
-      const payload: JwtPayload & { id: string; deviceId: string } = {
+      const payload: JwtPayload & { id: string; deviceId: string; role: string } = {
         id: userData.id,
-        deviceId: userData?.device_id,
+        deviceId: device_id,
+        role: decoded.role,
       };
       const accessTokenOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
       const newAccessToken = jwt.sign(payload, config.jwt.secret, accessTokenOptions);
@@ -395,7 +421,7 @@ export const AuthService = {
 
         // ✅ If token is invalid — remove from DB
         if (!result.success && result.error === 'INVALID_TOKEN') {
-          await AuthRepository.clearFcmToken(userId, oldDeviceId);
+          await AuthRepository.clearFcmToken(userId, role, oldDeviceId);
           logger.warn(`Cleared invalid FCM token for user: ${userId} device: ${oldDeviceId}`);
         }
       } else {
@@ -403,7 +429,7 @@ export const AuthService = {
       }
 
       // ✅ Always set force_logout flag as fallback
-      await AuthRepository.setForceLogout(userId, oldDeviceId);
+      await AuthRepository.setForceLogout(userId, role, oldDeviceId);
       logger.info(`Force logout set for user: ${userId} device: ${oldDeviceId}`);
 
     } catch (err) {

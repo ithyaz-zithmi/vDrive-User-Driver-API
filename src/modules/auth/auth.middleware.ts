@@ -22,6 +22,7 @@ export const authMiddleware = async (req: any, res: any, next: any) => {
         if (decoded.id && device_id) {
             const shouldForceLogout = await AuthRepository.checkForceLogout(
                 decoded.id,
+                decoded.role,
                 device_id
             );
 

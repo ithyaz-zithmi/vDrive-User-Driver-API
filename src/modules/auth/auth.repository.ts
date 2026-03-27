@@ -81,13 +81,14 @@ export const AuthRepository = {
   ): Promise<boolean> {
     try {
       const table = role === 'driver' ? 'drivers' : 'users';
+      const sessionTable = this.getSessionTable(role);
 
       // ✅ Get FCM token before clearing session
-      const fcmToken = await AuthRepository.getFcmToken(userId, device_id);
+      const fcmToken = await AuthRepository.getFcmToken(userId, role, device_id);
 
       // ✅ Invalidate specific device session
       await query(
-        `UPDATE user_sessions
+        `UPDATE ${sessionTable}
        SET is_active     = FALSE,
            refresh_token = NULL,
            fcm_token     = NULL,
@@ -134,6 +135,9 @@ export const AuthRepository = {
   // ─── Sessions ─────────────────────────────────────────────────────────────
   // *************************************************************************** 
 
+  getSessionTable(role: string): string {
+    return role === 'driver' ? 'driver_sessions' : 'user_sessions';
+  },
 
   // Create or update session for user+device
   async upsertSession(
@@ -143,10 +147,11 @@ export const AuthRepository = {
     refresh_token: string,
     fcm_token: string
   ) {
+    const table = this.getSessionTable(role);
     // Hash refresh token before storing
     const hashedToken = await bcrypt.hash(refresh_token, 10);
     await query(
-      `INSERT INTO user_sessions
+      `INSERT INTO ${table}
          (user_id, device_id, role, refresh_token, fcm_token, is_active, last_active)
        VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
        ON CONFLICT (user_id, device_id)
@@ -161,9 +166,10 @@ export const AuthRepository = {
   },
 
   // Get active session for user
-  async getActiveSession(user_id: string, exclude_device_id?: string) {
+  async getActiveSession(user_id: string, role: string, exclude_device_id?: string) {
+    const table = this.getSessionTable(role);
     const result = await query(
-      `SELECT * FROM user_sessions
+      `SELECT * FROM ${table}
      WHERE user_id = $1
        AND is_active = TRUE
        ${exclude_device_id ? 'AND device_id != $2' : ''}
@@ -175,9 +181,10 @@ export const AuthRepository = {
   },
 
   // Invalidate all sessions for user (logout from all devices)
-  async invalidateAllSessions(user_id: string, exclude_device_id?: string) {
+  async invalidateAllSessions(user_id: string, role: string, exclude_device_id?: string) {
+    const table = this.getSessionTable(role);
     await query(
-      `UPDATE user_sessions
+      `UPDATE ${table}
      SET is_active     = FALSE,
          refresh_token = NULL,
          force_logout  = TRUE,   -- ✅ set force_logout on invalidation
@@ -190,17 +197,18 @@ export const AuthRepository = {
 
   // Invalidate specific device session
   async invalidateSession(userId: string, device_id: string, role: string) {
+    const table = this.getSessionTable(role);
     // ✅ Invalidate only the specific device session
     await query(
-      `UPDATE user_sessions
+      `UPDATE ${table}
      SET is_active = FALSE,
          refresh_token = NULL
      WHERE user_id = $1 AND device_id = $2`,
       [userId, device_id]
     );
-    const table = role === 'driver' ? 'drivers' : 'users';
+    const userTable = role === 'driver' ? 'drivers' : 'users';
     await query(
-      `UPDATE ${table} SET device_id = NULL, refresh_token = NULL WHERE id = $1`,
+      `UPDATE ${userTable} SET device_id = NULL, refresh_token = NULL WHERE id = $1`,
       [userId]
     );
 
@@ -208,9 +216,10 @@ export const AuthRepository = {
   },
 
   // Also add getSessionByDevice to AuthRepository
-  async getSessionByDevice(user_id: string, device_id: string) {
+  async getSessionByDevice(user_id: string, role: string, device_id: string) {
+    const table = this.getSessionTable(role);
     const result = await query(
-      `SELECT * FROM user_sessions
+      `SELECT * FROM ${table}
      WHERE user_id = $1
        AND device_id = $2
      LIMIT 1`,
@@ -222,11 +231,13 @@ export const AuthRepository = {
   // Validate refresh token against stored hash
   async validateRefreshToken(
     user_id: string,
+    role: string,
     device_id: string,
     refresh_token: string
   ): Promise<boolean> {
+    const table = this.getSessionTable(role);
     const result = await query(
-      `SELECT refresh_token FROM user_sessions
+      `SELECT refresh_token FROM ${table}
        WHERE user_id = $1 AND device_id = $2 AND is_active = TRUE`,
       [user_id, device_id]
     );
@@ -240,9 +251,10 @@ export const AuthRepository = {
   //*************************************************************************** 
 
   // Get FCM token for a device
-  async getFcmToken(user_id: string, device_id: string) {
+  async getFcmToken(user_id: string, role: string, device_id: string) {
+    const table = this.getSessionTable(role);
     const result = await query(
-      `SELECT fcm_token FROM user_sessions
+      `SELECT fcm_token FROM ${table}
      WHERE user_id = $1 AND device_id = $2 LIMIT 1`,
       [user_id, device_id]
     );
@@ -250,9 +262,10 @@ export const AuthRepository = {
   },
   // auth.repository.ts
 
-  async clearFcmToken(user_id: string, device_id: string): Promise<void> {
+  async clearFcmToken(user_id: string, role: string, device_id: string): Promise<void> {
+    const table = this.getSessionTable(role);
     await query(
-      `UPDATE user_sessions
+      `UPDATE ${table}
      SET fcm_token = NULL
      WHERE user_id = $1 AND device_id = $2`,
       [user_id, device_id]
@@ -264,18 +277,20 @@ export const AuthRepository = {
   //****************************************************************************** 
 
   // Set force logout flag for old device
-  async setForceLogout(user_id: string, device_id: string) {
+  async setForceLogout(user_id: string, role: string, device_id: string) {
+    const table = this.getSessionTable(role);
     await query(
-      `UPDATE user_sessions
+      `UPDATE ${table}
      SET force_logout = TRUE
      WHERE user_id = $1 AND device_id = $2`,
       [user_id, device_id]
     );
   },
 
-  async checkForceLogout(user_id: string, device_id: string): Promise<boolean> {
+  async checkForceLogout(user_id: string, role: string, device_id: string): Promise<boolean> {
+    const table = this.getSessionTable(role);
     const result = await query(
-      `SELECT force_logout FROM user_sessions
+      `SELECT force_logout FROM ${table}
      WHERE user_id = $1 AND device_id = $2 LIMIT 1`,
       [user_id, device_id]
     );
