@@ -13,13 +13,13 @@ export const TripSchedulerService = {
 
             // 1. Fetch upcoming accepted scheduled rides
             const result = await query(
-                `SELECT t.*, d.availability->>'status' as driver_status, d.fcm_token 
-         FROM trips t
-         JOIN drivers d ON t.driver_id = d.id
-         WHERE t.booking_type = 'SCHEDULED' 
-         AND t.trip_status = 'ACCEPTED'
-         AND t.scheduled_start_time > $1
-         AND t.scheduled_start_time < $1 + INTERVAL '35 minutes'`,
+                `SELECT t.*, d.status as driver_account_status, d.availability->>'status' as driver_status, d.fcm_token 
+                 FROM trips t
+                 JOIN drivers d ON t.driver_id = d.id
+                 WHERE t.booking_type = 'SCHEDULED' 
+                 AND t.trip_status = 'ACCEPTED'
+                 AND t.scheduled_start_time > $1
+                 AND t.scheduled_start_time < $1 + INTERVAL '70 minutes'`,
                 [now]
             );
 
@@ -27,47 +27,59 @@ export const TripSchedulerService = {
                 const startTime = new Date(trip.scheduled_start_time);
                 const diffMinutes = Math.floor((startTime.getTime() - now.getTime()) / 60000);
 
-                // a. 30-minute reminder
+                // 1-hour reminder
+                if (diffMinutes >= 55 && diffMinutes <= 65 && !trip.one_hour_reminder_sent) {
+                    await NotificationService.sendNotificationToDriver(
+                        trip.driver_id,
+                        'One Hour Reminder',
+                        `You have a scheduled trip in 1 hour at ${trip.pickup_address}. Please ensure you are online.`,
+                        { type: 'SCHEDULED_REMINDER_1H', tripId: trip.trip_id }
+                    );
+                    await query('UPDATE trips SET one_hour_reminder_sent = true WHERE trip_id = $1', [trip.trip_id]);
+                }
+
+                // 30-minute reminder
                 if (diffMinutes >= 28 && diffMinutes <= 32) {
                     if (trip.driver_status === 'ONLINE') {
                         await NotificationService.sendNotificationToDriver(
                             trip.driver_id,
                             'Upcoming Trip Reminder',
                             `You have a scheduled trip starting in 30 minutes at ${trip.pickup_address}.`,
-                            { type: 'SCHEDULED_REMINDER', tripId: trip.trip_id }
+                            { type: 'SCHEDULED_REMINDER_30M', tripId: trip.trip_id }
                         );
-                    } else {
-                        logger.info(`Skipping 30-minute reminder for trip ${trip.trip_id} as driver ${trip.driver_id} is OFFLINE.`);
                     }
                 }
 
-                // b. 10-minute check & auto-unassign
-                if (diffMinutes >= 8 && diffMinutes <= 12) {
+                // 20-minute check & auto-re-dispatch
+                if (diffMinutes >= 18 && diffMinutes <= 22) {
                     if (trip.driver_status === 'OFFLINE') {
-                        // Unassign
-                        logger.warn(`Auto-unassigning trip ${trip.trip_id} because driver ${trip.driver_id} is OFFLINE 10 mins before start.`);
+                        logger.warn(`Auto-unassigning trip ${trip.trip_id} because driver ${trip.driver_id} is OFFLINE 20 mins before start.`);
 
-                        await query(
-                            "UPDATE trips SET trip_status = 'REQUESTED', driver_id = NULL, updated_at = NOW() WHERE trip_id = $1",
+                        // Reset trip to OPEN and REQUESTED
+                         await query(
+                            `UPDATE trips 
+                             SET trip_status = 'REQUESTED', 
+                                 scheduled_status = 'OPEN', 
+                                 driver_id = NULL, 
+                                 assigned_at = NULL, 
+                                 re_dispatch_count = re_dispatch_count + 1,
+                                 updated_at = NOW() 
+                             WHERE trip_id = $1`,
                             [trip.trip_id]
                         );
+
+                        // Recalculate flags for the offline driver
+                        await DriverRepository.recalculateDriverScheduleFlags(trip.driver_id);
 
                         await NotificationService.sendNotificationToDriver(
                             trip.driver_id,
                             'Trip Unassigned',
-                            'You were offline 10 minutes before a scheduled trip, so it has been unassigned.',
+                            'You were offline 20 minutes before a scheduled trip, so it has been unassigned.',
                             { type: 'TRIP_UNASSIGNED', tripId: trip.trip_id }
                         );
 
-                        // Notify admin/system or put back in pool
-                    } else {
-                        // Just a 10-minute reminder if they are online
-                        await NotificationService.sendNotificationToDriver(
-                            trip.driver_id,
-                            'Final Trip Reminder',
-                            `Your scheduled trip starts in 10 minutes. Please head to ${trip.pickup_address}.`,
-                            { type: 'SCHEDULED_REMINDER', tripId: trip.trip_id }
-                        );
+                        // Note: Re-broadcasting will be handled by broadcastUpcomingScheduledRides in its next run
+                        // or we could call TripService.broadcastScheduledRide(trip) here.
                     }
                 }
             }

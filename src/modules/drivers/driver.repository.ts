@@ -177,6 +177,14 @@ export const DriverRepository = {
         driverFields.push(`fcm_token = $${paramCount++}`);
         driverValues.push(driverData.fcm_token);
       }
+      if (driverData.has_scheduled_ride !== undefined) {
+        driverFields.push(`has_scheduled_ride = $${paramCount++}`);
+        driverValues.push(driverData.has_scheduled_ride);
+      }
+      if (driverData.next_scheduled_time !== undefined) {
+        driverFields.push(`next_scheduled_time = $${paramCount++}`);
+        driverValues.push(driverData.next_scheduled_time);
+      }
 
       // JSONB updates using merge operator ||
       // 🛡️ Use COALESCE to prevent NULL results when merging
@@ -483,7 +491,7 @@ export const DriverRepository = {
         details: log.details || '',
         createdAt: log.created_at,
       })),
-      active_subscription: activeSubscription ? {
+      subscription_details: activeSubscription ? {
         platform_subscription_id: activeSubscription.id,
         plan_name: activeSubscription.plan_name,
         billing_cycle: activeSubscription.billing_cycle,
@@ -571,5 +579,31 @@ export const DriverRepository = {
       'UPDATE drivers SET fcm_token = $1, updated_at = NOW() WHERE id = $2',
       [fcmToken, driverId],
     );
+  },
+
+  async recalculateDriverScheduleFlags(driverId: string): Promise<void> {
+    const result = await query(
+      `SELECT scheduled_start_time 
+       FROM trips 
+       WHERE driver_id = $1 
+         AND booking_type = 'SCHEDULED' 
+         AND trip_status = 'ACCEPTED' 
+         AND scheduled_start_time > NOW()
+       ORDER BY scheduled_start_time ASC
+       LIMIT 1`,
+      [driverId]
+    );
+
+    if (result.rows.length > 0) {
+      await query(
+        'UPDATE drivers SET has_scheduled_ride = true, next_scheduled_time = $1 WHERE id = $2',
+        [result.rows[0].scheduled_start_time, driverId]
+      );
+    } else {
+      await query(
+        'UPDATE drivers SET has_scheduled_ride = false, next_scheduled_time = NULL WHERE id = $1',
+        [driverId]
+      );
+    }
   },
 };

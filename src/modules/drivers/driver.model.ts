@@ -136,7 +136,9 @@ export interface Driver {
   is_vibration_enabled?: boolean;
   fcm_token?: string;
   vdrive_id?: string;
-  active_subscription?: {
+  has_scheduled_ride?: boolean;
+  next_scheduled_time?: string | Date;
+  subscription_details?: {
     platform_subscription_id?: number;
     plan_name: string;
     billing_cycle: string;
@@ -180,6 +182,8 @@ export interface CreateDriverInput {
   language?: string;
   is_vibration_enabled?: boolean;
   fcm_token?: string;
+  has_scheduled_ride?: boolean;
+  next_scheduled_time?: string | Date;
 }
 
 export interface UpdateDriverInput extends Partial<
@@ -209,4 +213,6 @@ export interface UpdateDriverInput extends Partial<
   language?: string;
   is_vibration_enabled?: boolean;
   fcm_token?: string;
+  has_scheduled_ride?: boolean;
+  next_scheduled_time?: string | Date;
 }

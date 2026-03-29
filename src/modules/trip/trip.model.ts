@@ -6,6 +6,7 @@ import {
   RideType,
   ServiceType,
   TripStatus,
+  ScheduledStatus,
 } from '../../enums/trip.enums';
 
 export interface Trip {
@@ -17,8 +18,11 @@ export interface Trip {
   service_type: ServiceType;
   booking_type: BookingType;
   trip_status: TripStatus;
+  scheduled_status?: ScheduledStatus;
   original_scheduled_start_time: Date;
   scheduled_start_time?: Date;
+  re_dispatch_count?: number;
+  one_hour_reminder_sent?: boolean;
   actual_pickup_time?: Date;
   actual_drop_time?: Date;
   pickup_lat: number;

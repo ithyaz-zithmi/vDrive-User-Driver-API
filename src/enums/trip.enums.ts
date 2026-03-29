@@ -15,6 +15,13 @@ export enum BookingType {
   SCHEDULED = 'SCHEDULED',
 }
 
+export enum ScheduledStatus {
+  OPEN = 'OPEN',
+  ASSIGNED = 'ASSIGNED',
+  STARTED = 'STARTED',
+  RE_DISPATCHED = 'RE_DISPATCHED',
+}
+
 export enum TripStatus {
   REQUESTED = 'REQUESTED',
   ACCEPTED = 'ACCEPTED',

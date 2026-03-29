@@ -180,4 +180,16 @@ export const TripRepository = {
     );
     return result.rows[0] || null;
   },
+
+  async findScheduledByDriverId(driverId: string): Promise<Trip[]> {
+    const result = await query(
+      `SELECT * FROM trips 
+       WHERE driver_id = $1 
+         AND booking_type = 'SCHEDULED' 
+         AND trip_status = 'ACCEPTED'
+       ORDER BY scheduled_start_time ASC`,
+      [driverId]
+    );
+    return result.rows || [];
+  },
 };
