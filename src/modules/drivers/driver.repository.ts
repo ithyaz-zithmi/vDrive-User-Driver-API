@@ -1,5 +1,6 @@
 // src/modules/drivers/driver.repository.ts
 import { query } from '../../shared/database';
+import { logger } from '../../shared/logger';
 import { Driver, CreateDriverInput, UpdateDriverInput, Document, KYC, Credit, Availability, Performance, Payments } from './driver.model';
 
 export const DriverRepository = {
@@ -307,7 +308,7 @@ export const DriverRepository = {
     if (driverResult.rows.length === 0) return null;
 
     const driver = driverResult.rows[0];
-
+    logger.info(`driver`, driver);
     // Get completed trips count
     try {
       const completedTripsResult = await query(
@@ -449,6 +450,9 @@ export const DriverRepository = {
       is_vibration_enabled: driver.is_vibration_enabled ?? true,
       fcm_token: driver.fcm_token || null,
       vdrive_id: driver.vdrive_id,
+      current_lat: driver.current_lat,
+      current_lng: driver.current_lng,
+      current_heading: driver.current_heading,
       created_at: driver.created_at,
       updated_at: driver.updated_at,
       documents: documents.map((doc) => ({

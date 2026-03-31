@@ -7,11 +7,10 @@ import { cleanUndefined } from '../../utilities/helper';
 import { notifyAdmin } from '../../sockets/admin-socket.service';
 import { DriverNotifications, UserNotifications } from '../notifications';
 import { UserRepository } from '../users/user.repository';
-import { CancelBy, TripStatus } from '../../enums/trip.enums';
 import { DriverRepository } from '../drivers/driver.repository';
 
 import { v4 as uuidv4 } from 'uuid';
-import { RideType, ServiceType, BookingType, TripStatus } from '../../enums/trip.enums';
+import { RideType, ServiceType, BookingType, TripStatus, CancelBy } from '../../enums/trip.enums';
 
 export const TripController = {
   //user-driver
@@ -275,64 +274,6 @@ export const TripController = {
     }
   },
 
-  async acceptTrip(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const driverId = req.body.driver_id || (req as any).user?.id;
-      if (!driverId) throw { statusCode: 400, message: 'driver_id is required' };
-
-      const trip = await TripService.acceptTrip(id as string, driverId);
-      return successResponse(res, 200, 'Trip accepted successfully', trip);
-    } catch (err: any) {
-      logger.error(`acceptTrip error: ${err.message}`);
-      next(err);
-    }
-  },
-
-  async startTrip(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const trip = await TripService.startTrip(id as string);
-      return successResponse(res, 200, 'Trip started successfully', trip);
-    } catch (err: any) {
-      logger.error(`startTrip error: ${err.message}`);
-      next(err);
-    }
-  },
-
-  async cancelTrip(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const { cancel_reason, cancel_by } = req.body;
-      const trip = await TripService.cancelTrip(id as string, cancel_reason, cancel_by);
-      return successResponse(res, 200, 'Trip cancelled successfully', trip);
-    } catch (err: any) {
-      logger.error(`cancelTrip error: ${err.message}`);
-      next(err);
-    }
-  },
-
-  async completeTrip(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const trip = await TripService.completeTrip(id as string);
-      return successResponse(res, 200, 'Trip completed successfully', trip);
-    } catch (err: any) {
-      logger.error(`completeTrip error: ${err.message}`);
-      next(err);
-    }
-  },
-
-  async arrivedTrip(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const trip = await TripService.arrivedTrip(id as string);
-      return successResponse(res, 200, 'Driver arrived at pickup successfully', trip);
-    } catch (err: any) {
-      logger.error(`arrivedTrip error: ${err.message}`);
-      next(err);
-    }
-  },
 
   async testSimulateScheduled(req: Request, res: Response, next: NextFunction) {
     try {

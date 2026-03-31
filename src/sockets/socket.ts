@@ -57,6 +57,12 @@ const handleRoomJoins = (socket: Socket): void => {
         logger.info(`Socket ${socket.id} joined room: ${room}`);
     });
 
+    // Generic room leave
+    socket.on('leave', (room: string) => {
+        socket.leave(room);
+        logger.info(`Socket ${socket.id} left room: ${room}`);
+    });
+
     // ✅ User/Driver joining a trip room — BOTH join same room
     socket.on('joinRide', (data: { rideId: string; role: string; actorId: string }) => {
         const { rideId, role, actorId } = data;
@@ -71,6 +77,22 @@ const handleRoomJoins = (socket: Socket): void => {
         } else if (role === 'DRIVER') {
             socket.join(`driver_${actorId}`);
             logger.info(`Driver ${actorId} joined trip room: ${tripRoom}`);
+        }
+    });
+
+    // ✅ User/Driver leaving a trip room
+    socket.on('leaveRide', (data: { rideId: string; role: string; actorId: string }) => {
+        const { rideId, role, actorId } = data;
+
+        const tripRoom = `trip_${rideId}`;
+        socket.leave(tripRoom);
+
+        if (role === 'USER') {
+            socket.leave(`user_${actorId}`);
+            logger.info(`User ${actorId} left trip room: ${tripRoom}`);
+        } else if (role === 'DRIVER') {
+            socket.leave(`driver_${actorId}`);
+            logger.info(`Driver ${actorId} left trip room: ${tripRoom}`);
         }
     });
 
@@ -99,6 +121,7 @@ const handleDriverLocation = (socket: Socket): void => {
             heading?: number;
             eta?: number;
         }) => {
+            // logger.info(`Driver location: rideId ${data.rideId} ${data.latitude}, ${data.longitude}`);
             emitToRoom(`trip_${data.rideId}`, 'locationUpdate', {
                 latitude: data.latitude,
                 longitude: data.longitude,

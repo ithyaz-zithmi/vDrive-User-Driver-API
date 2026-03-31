@@ -154,6 +154,7 @@ export const TripService = {
     }
 
     const driver = await DriverRepository.findById(driverId);
+    logger.info(`driver`, driver);
     if (!driver) {
       throw { statusCode: 404, message: 'Driver not found' };
     }
@@ -198,7 +199,7 @@ export const TripService = {
 
       // Update Trip
       await TripRepository.acceptTrip(tripId, driverId);
-      logger.info(`driver`, driver);
+     
       // Update Driver
       await DriverRepository.update(driverId, {
         availability: {
@@ -211,7 +212,7 @@ export const TripService = {
     const updatedTrip = await TripRepository.findById(tripId);
 
     // Broadcast update via Socket.IO
-    broadcastTripUpdate(tripId, { status: TripStatus.ACCEPTED, type: 'trip_updated', trip: updatedTrip });
+    // broadcastTripUpdate(tripId, { status: TripStatus.ACCEPTED, type: 'trip_updated', trip: updatedTrip });
 
 
     try {
@@ -224,9 +225,11 @@ export const TripService = {
           name: driver.full_name ?? 'Captain',
           phone: driver.phone_number,
           rating: driver.rating,
-          current_lat: Number(driver.current_lat) || 0,
-          current_lng: Number(driver.current_lng) || 0,
-          heading: Number(driver.current_heading) || 0,
+          // otp: user?.otp || driver?.otp || '1234',
+          otp: 1234,
+          current_lat: driver.current_lat || 0,
+          current_lng: driver.current_lng || 0,
+          heading: driver.current_heading || 0,
         },
       });
 
@@ -602,7 +605,17 @@ export const TripService = {
     const updatedTrip = await TripRepository.findById(tripId);
 
     // Broadcast update via Socket.IO
-    broadcastTripUpdate(tripId, { status: TripStatus.LIVE, type: 'trip_updated', trip: updatedTrip });
+    // broadcastTripUpdate(tripId, { status: TripStatus.LIVE, type: 'trip_updated', trip: updatedTrip });
+
+    try {
+      emitTripUpdate(tripId, TripSocketEvent.TRIP_STARTED, {
+        tripId,
+        status: TripStatus.LIVE,
+        trip: updatedTrip,
+      });
+    } catch (err: any) {
+      console.error('Failed to emit trip update:', err.message);
+    }
 
     return updatedTrip;
   },
@@ -638,10 +651,10 @@ export const TripService = {
       const fcmToken = trip.user_id ? await UserRepository.getFcmTokenById(trip.user_id) : null;
       const driverfcmtoken = trip.driver_id ? await DriverRepository.getFcmTokenById(trip.driver_id) : null;
       if (fcmToken) {
-        await UserNotifications.rideCompleted(fcmToken, trip.trip_id || "", String(trip.paid_amount || 0));
+        await UserNotifications.rideCompleted(fcmToken, trip.trip_id || "", String(trip.total_fare || 0));
       }
       if (driverfcmtoken) {
-        await DriverNotifications.rideCompleted(driverfcmtoken, trip.trip_id || "", String(trip.paid_amount || 0));
+        await DriverNotifications.rideCompleted(driverfcmtoken, trip.trip_id || "", String(trip.total_fare || 0));
       }
     } catch (err: any) {
       console.error('Failed to notify user about ride completion:', err.message);
@@ -649,7 +662,17 @@ export const TripService = {
 
     const updatedTrip = await TripRepository.findById(tripId);
 
-    broadcastTripUpdate(tripId, { status: TripStatus.COMPLETED, type: 'trip_updated', trip: updatedTrip });
+    // broadcastTripUpdate(tripId, { status: TripStatus.COMPLETED, type: 'trip_updated', trip: updatedTrip });
+
+    try {
+      emitTripUpdate(tripId, TripSocketEvent.TRIP_COMPLETED, {
+        tripId,
+        status: TripStatus.COMPLETED,
+        trip: updatedTrip,
+      });
+    } catch (err: any) {
+      console.error('Failed to emit trip completion:', err.message);
+    }
 
     return updatedTrip;
   },
@@ -675,8 +698,23 @@ export const TripService = {
 
     const updatedTrip = await TripRepository.findById(tripId);
 
-    broadcastTripUpdate(tripId, { status: TripStatus.ARRIVED, type: 'trip_updated', trip: updatedTrip });
+    // broadcastTripUpdate(tripId, { status: TripStatus.ARRIVED, type: 'trip_updated', trip: updatedTrip });
+
+    try {
+      emitTripUpdate(tripId, TripSocketEvent.TRIP_UPDATED, {
+        tripId,
+        status: TripStatus.ARRIVED,
+        trip: updatedTrip,
+      });
+    } catch (err: any) {
+      console.error('Failed to emit trip arrival:', err.message);
+    } 
 
     return updatedTrip;
+  },
+  
+
+  async getActiveTrip(driverId: string) {
+    return await TripRepository.findActiveByDriverId(driverId);
   },
 };

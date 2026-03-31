@@ -31,6 +31,7 @@ export interface TripEventPayload {
         name?: string;
         phone?: string;
         rating?: number;
+        otp?: number;
         profilePic?: string;
         current_lat?: number;
         current_lng?: number;
