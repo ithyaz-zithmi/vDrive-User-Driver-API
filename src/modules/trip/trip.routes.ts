@@ -51,6 +51,7 @@ router.post('/status/:id',
 router.post('/:id/accept', validateParams(TripValidation.idValidation), TripController.acceptTrip);
 router.post('/:id/start', validateParams(TripValidation.idValidation), TripController.startTrip);
 router.post('/:id/arrived', validateParams(TripValidation.idValidation), TripController.arrivedTrip);
+router.post('/:id/destination-reached', validateParams(TripValidation.idValidation), TripController.destinationReachedTrip);
 router.post('/:id/complete', validateParams(TripValidation.idValidation), TripController.completeTrip);
 
 // Location History (trip replay)

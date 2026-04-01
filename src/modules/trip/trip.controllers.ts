@@ -11,6 +11,7 @@ import { DriverRepository } from '../drivers/driver.repository';
 
 import { v4 as uuidv4 } from 'uuid';
 import { RideType, ServiceType, BookingType, TripStatus, CancelBy } from '../../enums/trip.enums';
+import { emitTripUpdate } from '../../sockets/socket';
 
 export const TripController = {
   //user-driver
@@ -187,7 +188,9 @@ export const TripController = {
         if (userfcmtoken && trip.trip_id) {
           await UserNotifications.rideCancelled(userfcmtoken, trip.trip_id);
         }
+   
       }
+
 
       return res.status(200).json({
         success: true,
@@ -244,6 +247,17 @@ export const TripController = {
       return successResponse(res, 200, 'Driver arrived at pickup successfully', trip);
     } catch (err: any) {
       logger.error(`arrivedTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async destinationReachedTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.destinationReachedTrip(id as string);
+      return successResponse(res, 200, 'Driver reached destination successfully', trip);
+    } catch (err: any) {
+      logger.error(`destinationReachedTrip error: ${err.message}`);
       next(err);
     }
   },

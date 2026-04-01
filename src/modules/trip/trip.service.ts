@@ -557,6 +557,15 @@ export const TripService = {
       metadata: { cancel_reason: cancelReason },
     });
 
+         emitTripUpdate(tripId, TripSocketEvent.TRIP_CANCELLED, {
+          tripId: tripId,
+          status: trip.trip_status,
+          cancelledBy: cancelBy,
+          cancelReason: cancelReason,
+          notes: notes,
+          timestamp: new Date().toISOString(),
+        });
+
     broadcastTripUpdate(tripId, { status: newStatus, type: 'trip_updated', trip: updatedTrip });
 
     return updatedTrip;
@@ -713,6 +722,42 @@ export const TripService = {
     return updatedTrip;
   },
   
+
+  async destinationReachedTrip(tripId: string) {
+    const trip = await TripRepository.findById(tripId);
+    if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+    await this.updateTrip(tripId, {
+      trip_status: TripStatus.DESTINATION_REACHED,
+    });
+
+    const driver = trip.driver_id ? await DriverRepository.findById(trip.driver_id) : null;
+    // Notify User
+    try {
+      const fcmToken = await UserRepository.getFcmTokenById(trip.user_id);
+      if (fcmToken) {
+        await UserNotifications.destinationReached(fcmToken, driver?.full_name || "Driver", tripId);
+      }
+    } catch (err: any) {
+      console.error('Failed to notify user about driver arrival:', err.message);
+    }
+
+    const updatedTrip = await TripRepository.findById(tripId);
+
+    // broadcastTripUpdate(tripId, { status: TripStatus.ARRIVED, type: 'trip_updated', trip: updatedTrip });
+
+    try {
+      emitTripUpdate(tripId, TripSocketEvent.DESTINATION_REACHED, {
+        tripId,
+        status: TripStatus.DESTINATION_REACHED,
+        trip: updatedTrip,
+      });
+    } catch (err: any) {
+      console.error('Failed to emit trip arrival:', err.message);
+    } 
+
+    return updatedTrip;
+  },
 
   async getActiveTrip(driverId: string) {
     return await TripRepository.findActiveByDriverId(driverId);

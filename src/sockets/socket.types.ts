@@ -12,6 +12,7 @@ export enum TripSocketEvent {
     TRIP_UPDATED = 'TRIP_UPDATED',
     TRIP_REMOVED = 'TRIP_REMOVED',
     TRIP_STATUS_CHANGED = 'TRIP_STATUS_CHANGED',
+    DESTINATION_REACHED = 'DESTINATION_REACHED',
 
     //Driver
     DRIVER_LOCATION = 'DRIVER_LOCATION',
@@ -26,6 +27,7 @@ export interface TripEventPayload {
     trip?: any;
     cancelledBy?: string;
     cancelReason?: string;
+    notes?: string;
     driver?: {
         id?: string;
         name?: string;

@@ -70,6 +70,14 @@ export const UserNotifications = {
             data: { bookingId },
         }),
 
+    destinationReached: (fcmToken: string, driverName: string, bookingId: string) =>
+        sendToDevice(fcmToken, {
+            type: UserNotificationType.DESTINATION_REACHED,
+            title: 'Destination Reached! 🚗',
+            body: `${driverName} has reached your destination.`,
+            data: { bookingId, driverName },
+        }),
+
     rideCompleted: (fcmToken: string, bookingId: string, amount: string) =>
         sendToDevice(fcmToken, {
             type: UserNotificationType.RIDE_COMPLETED,
