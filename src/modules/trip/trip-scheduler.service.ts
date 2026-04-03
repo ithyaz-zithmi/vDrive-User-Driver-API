@@ -97,15 +97,16 @@ export const TripSchedulerService = {
 
             if (result.rows.length === 0) return;
 
-            // 2. Fetch all ONLINE drivers
-            const onlineDrivers = await query(
+            // 2. Fetch all drivers with active status and subscription (Online & Offline)
+            const eligibleDrivers = await query(
                 `SELECT id, fcm_token FROM drivers 
-                 WHERE availability->>'status' = 'ONLINE'
+                 WHERE status = 'active'
+                 AND onboarding_status = 'SUBSCRIPTION_ACTIVE'
                  AND fcm_token IS NOT NULL`
             );
 
             for (const trip of result.rows) {
-                for (const driver of onlineDrivers.rows) {
+                for (const driver of eligibleDrivers.rows) {
                     await NotificationService.sendNotification(
                         driver.fcm_token,
                         'New Scheduled Ride Request',
@@ -128,5 +129,51 @@ export const TripSchedulerService = {
         } catch (error: any) {
             logger.error(`Error in broadcastUpcomingScheduledRides: ${error.message}`);
         }
+    },
+
+    /**
+     * Immediately broadcasts a NEWly created scheduled ride to all eligible drivers
+     */
+    async broadcastNewScheduledRide(trip: any, io?: any) {
+        try {
+            // Fetch all drivers with active status and subscription (Online & Offline)
+            const eligibleDrivers = await query(
+                `SELECT id, fcm_token FROM drivers 
+                 WHERE status = 'active'
+                 AND onboarding_status = 'SUBSCRIPTION_ACTIVE'
+                 AND fcm_token IS NOT NULL`
+            );
+
+            for (const driver of eligibleDrivers.rows) {
+                await NotificationService.sendNotification(
+                    driver.fcm_token,
+                    'New Scheduled Ride Available',
+                    `A new scheduled ride is available for ${trip.scheduled_start_time}. Pickup: ${trip.pickup_address}`,
+                    {
+                        type: 'ride_request',
+                        trip_id: trip.trip_id,
+                        pickup_address: trip.pickup_address,
+                        drop_address: trip.drop_address,
+                        total_fare: trip.total_fare?.toString() || '--',
+                        distance_km: trip.distance_km?.toString() || '--',
+                        trip_duration_minutes: trip.trip_duration_minutes?.toString() || '--',
+                        ride_type: trip.ride_type,
+                        booking_type: trip.booking_type,
+                        scheduled_start_time: trip.scheduled_start_time instanceof Date 
+                            ? trip.scheduled_start_time.toISOString() 
+                            : trip.scheduled_start_time,
+                    }
+                );
+            }
+
+            // 📍 REAL-TIME: Broadcast via Sockets if io is provided
+            if (io) {
+                console.log(`📡 Broadcasting NEW_TRIP_REQUEST via Sockets for trip ${trip.trip_id}`);
+                io.emit('NEW_TRIP_REQUEST', { trip });
+            }
+        } catch (error: any) {
+            logger.error(`Error in broadcastNewScheduledRide: ${error.message}`);
+        }
     }
+
 };

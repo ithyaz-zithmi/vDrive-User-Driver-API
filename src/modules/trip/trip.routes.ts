@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { TripController } from './trip.controllers';
 import { validateBody, validateParams } from '../../utilities/helper';
 import { TripValidation } from './trip.validator';
+import { authMiddleware } from '../auth/auth.middleware';
 
 const router = Router();
 
@@ -11,7 +12,8 @@ router.get('/active', TripController.getActiveTrip);
 
 //user-driver  
 router.get('/bytripid/:id', validateParams(TripValidation.idValidation), TripController.getTripById);
-router.get('/all', TripController.getTrips);
+router.get('/all', authMiddleware, TripController.getTrips);
+router.post('/:id/skip', authMiddleware, validateParams(TripValidation.idValidation), TripController.skipTrip);
 router.get('/activetrip/:id', validateParams(TripValidation.idValidation), TripController.getActiveTripByUserId)
 
 //Trip
@@ -50,6 +52,7 @@ router.post('/status/:id',
 
 router.post('/:id/accept', validateParams(TripValidation.idValidation), TripController.acceptTrip);
 router.post('/:id/start', validateParams(TripValidation.idValidation), TripController.startTrip);
+router.post('/:id/arriving', validateParams(TripValidation.idValidation), TripController.arrivingTrip);
 router.post('/:id/arrived', validateParams(TripValidation.idValidation), TripController.arrivedTrip);
 router.post('/:id/destination-reached', validateParams(TripValidation.idValidation), TripController.destinationReachedTrip);
 router.post('/:id/complete', validateParams(TripValidation.idValidation), TripController.completeTrip);

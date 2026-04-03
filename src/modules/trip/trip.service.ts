@@ -18,12 +18,14 @@ import { logger } from '../../shared/logger';
 const tripBroadcastTimers = new Map<string, NodeJS.Timeout>();
 
 export const TripService = {
-  async getTrips(bookingType?: string) {
-    if (bookingType) {
-      return await TripRepository.findActiveRequests(bookingType);
+  async getTrips(bookingType?: string, driverId?: string, onboardingStatus?: string) {
+    // If it's a driver and they are requesting scheduled rides
+    if (bookingType === 'SCHEDULED' && onboardingStatus !== 'SUBSCRIPTION_ACTIVE') {
+      // 🛡️ Return empty list if no active subscription
+      return [];
     }
-    // Default to active requests for the general driver feed if no type specified
-    return await TripRepository.findActiveRequests();
+
+    return await TripRepository.findActiveRequests(bookingType, driverId);
   },
 
   async getAllTripsWithChanges() {
@@ -396,12 +398,21 @@ export const TripService = {
       CancelReason.OTHER,
     ];
 
-    const userMidTripReasons = [
-      CancelReason.DRIVER_TOO_FAR,
-      CancelReason.WAIT_TIME_TOO_LONG,
-      CancelReason.FOUND_ANOTHER_RIDE,
+   const userMidTripReasons = [
+      CancelReason.CHANGED_MY_MIND,
+      CancelReason.UNSAFE_DRIVING,
+      CancelReason.DRIVER_BEHAVIOR,
+      CancelReason.VEHICLE_CONDITION,
+      CancelReason.WRONG_ROUTE,
+      CancelReason.FEELING_UNWELL,
+      CancelReason.CHANGE_PLANS,
+      CancelReason.TAKING_TOO_LONG,
+      CancelReason.VEHICLE_MISMATCH,
+      CancelReason.FARE_CONCERN,
+      CancelReason.FOUND_ALTERNATIVE,
       CancelReason.OTHER,
     ];
+
 
     if (cancelBy === CancelBy.DRIVER) {
       // Driver CANNOT cancel a LIVE trip unless it's an emergency
@@ -498,15 +509,17 @@ export const TripService = {
         if (userfcmtoken) {
           await UserNotifications.rideCancelled(
             userfcmtoken,
-            'Trip Cancelled by Driver',
-            mappedReason
+            tripId,
+            mappedReason,
+            cancelBy
           );
         }
         if (driverfcmtoken) {
           await DriverNotifications.bookingCancelled(
             driverfcmtoken,
-            'Ride Cancelled',
-            mappedReason
+            tripId,
+            mappedReason,
+            cancelBy
           );
         }
       } else if (cancelBy === CancelBy.USER) {
@@ -514,15 +527,17 @@ export const TripService = {
         if (driverfcmtoken) {
           await DriverNotifications.rideCancelled(
             driverfcmtoken,
-            'Trip Cancelled by User',
-            mappedReason
+            tripId,
+            mappedReason,
+            cancelBy
           );
         }
         if (userfcmtoken) {
           await UserNotifications.bookingCancelled(
             userfcmtoken,
-            'Ride Cancelled',
-            mappedReason
+            tripId,
+            mappedReason,
+            cancelBy
           );
         }
       } else if (cancelBy === CancelBy.ADMIN) {
@@ -530,15 +545,17 @@ export const TripService = {
         if (userfcmtoken) {
           await UserNotifications.rideCancelled(
             userfcmtoken,
-            'Trip Cancelled by Admin',
-            mappedReason
+            tripId,
+            mappedReason,
+            cancelBy
           );
         }
         if (driverfcmtoken) {
           await DriverNotifications.rideCancelled(
             driverfcmtoken,
-            'Trip Cancelled by Admin',
-            mappedReason
+            tripId,
+            mappedReason,
+            cancelBy
           );
         }
       }
@@ -559,7 +576,7 @@ export const TripService = {
 
          emitTripUpdate(tripId, TripSocketEvent.TRIP_CANCELLED, {
           tripId: tripId,
-          status: trip.trip_status,
+          status: updatedTrip.trip_status,
           cancelledBy: cancelBy,
           cancelReason: cancelReason,
           notes: notes,
@@ -686,6 +703,40 @@ export const TripService = {
     return updatedTrip;
   },
 
+  async arrivingTrip(tripId: string) {
+    const trip = await TripRepository.findById(tripId);
+    if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+    await this.updateTrip(tripId, {
+      trip_status: TripStatus.ARRIVING,
+    });
+
+    const driver = trip.driver_id ? await DriverRepository.findById(trip.driver_id) : null;
+    // Notify User
+    try {
+      const fcmToken = await UserRepository.getFcmTokenById(trip.user_id);
+      if (fcmToken) {
+        await UserNotifications.driverArriving(fcmToken, driver?.full_name || "Driver", tripId);
+      }
+    } catch (err: any) {
+      console.error('Failed to notify user about driver arriving:', err.message);
+    }
+
+    const updatedTrip = await TripRepository.findById(tripId);
+
+    try {
+      emitTripUpdate(tripId, TripSocketEvent.TRIP_UPDATED, {
+        tripId,
+        status: TripStatus.ARRIVING,
+        trip: updatedTrip,
+      });
+    } catch (err: any) {
+      console.error('Failed to emit trip arriving update:', err.message);
+    }
+
+    return updatedTrip;
+  },
+
   async arrivedTrip(tripId: string) {
     const trip = await TripRepository.findById(tripId);
     if (!trip) throw { statusCode: 404, message: 'Trip not found' };
@@ -761,5 +812,9 @@ export const TripService = {
 
   async getActiveTrip(driverId: string) {
     return await TripRepository.findActiveByDriverId(driverId);
+  },
+
+  async skipTrip(tripId: string, driverId: string) {
+    return await TripRepository.skipTrip(tripId, driverId);
   },
 };

@@ -15,24 +15,57 @@ export const TripRepository = {
     return result.rows || [];
   },
 
-  async findActiveRequests(bookingType?: string): Promise<Trip[]> {
-    let sql = `
-      SELECT t.*, u.full_name AS passenger_name 
+  async findActiveRequests(bookingType?: string, driverId?: string): Promise<Trip[]> {
+    const params: any[] = [];
+    // let sql = `
+    //   SELECT t.*, u.full_name AS passenger_name 
+    //   FROM trips t 
+    //   LEFT JOIN users u ON t.user_id = u.id
+    //   WHERE (
+    //     (t.trip_status = 'REQUESTED'`;
+ let sql = `
+      SELECT t.*,
+        jsonb_build_object(
+            'id', u.id,
+            'full_name', u.full_name,
+            'first_name', u.first_name,
+            'last_name', u.last_name,
+            'phone_number', u.phone_number,
+            'email', u.email,
+            'profile_url', u.profile_url,
+            'rating', u.rating
+        ) AS user_details
       FROM trips t 
       LEFT JOIN users u ON t.user_id = u.id
       WHERE t.trip_status = 'REQUESTED'
     `;
-    const params: any[] = [];
+
+    if (driverId) {
+      // 🛡️ Filter out trips already skipped by this driver
+      sql += ` AND NOT EXISTS (
+        SELECT 1 FROM trip_skips ts 
+        WHERE ts.trip_id = t.trip_id AND ts.driver_id = $${params.length + 1}
+      )`;
+      params.push(driverId);
+    }
+    
+    sql += `)`;
+
+    if (driverId) {
+      // 📍 Include rides already accepted by THIS driver
+      sql += ` OR (t.trip_status = 'ACCEPTED' AND t.driver_id = $${params.length + 1})`;
+      params.push(driverId);
+    }
+    
+    sql += `)`; // Close the main group
 
     if (bookingType) {
-      sql += ` AND t.booking_type = $1`;
+      sql += ` AND t.booking_type = $${params.length + 1}`;
       params.push(bookingType);
     }
 
-    // For scheduled rides, only show if starting within the next 24 hours OR already past start time but still requested
-    if (bookingType === 'SCHEDULED') {
-      sql += ` AND t.scheduled_start_time <= (NOW() + INTERVAL '24 hours')`;
-    }
+    // For scheduled rides, show all future recordings as requested by user
+    // (Removed 24-hour restriction)
 
     sql += ` ORDER BY t.scheduled_start_time ASC, t.created_at DESC;`;
 
@@ -43,46 +76,128 @@ export const TripRepository = {
 
   async findById(id: string): Promise<Trip | null> {
     const result = await query(
-      `SELECT t.*, u.full_name AS passenger_name, COALESCE(jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) FILTER (WHERE tc.trip_id IS NOT NULL),'[]'::jsonb) AS trip_changes
+      `SELECT t.*, 
+              jsonb_build_object(
+                'id', u.id,
+                'full_name', u.full_name,
+                'first_name', u.first_name,
+                'last_name', u.last_name,
+                'phone_number', u.phone_number,
+                'email', u.email,
+                'profile_url', u.profile_url,
+                'rating', u.rating
+              ) AS user_details,
+              jsonb_build_object(
+                'id', d.id,
+                'first_name', d.first_name,
+                'last_name', d.last_name,
+                'full_name', d.full_name,
+                'phone_number', d.phone_number,
+                'profile_pic_url', d.profile_pic_url,
+                'rating', d.rating,
+                'current_lat', d.current_lat,
+                'current_lng', d.current_lng
+                -- 'vehicle_number', d.vehicle_number,
+                -- 'vehicle_model', d.vehicle_model,
+                -- 'vehicle_type', d.vehicle_type
+              ) AS driver_details,
+      COALESCE(jsonb_agg(to_jsonb(tc)
+      ORDER BY tc.changed_at DESC) FILTER (WHERE tc.trip_id IS NOT NULL),'[]'::jsonb) AS trip_changes
       FROM trips t 
       LEFT JOIN users u ON t.user_id = u.id
-      LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id WHERE t.trip_id = $1 GROUP BY t.trip_id, u.full_name;`,
+      LEFT JOIN drivers d ON t.driver_id = d.id
+      LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id WHERE t.trip_id = $1 GROUP BY t.trip_id, u.id, d.id;`,
       [id]
     );
     return result.rows[0] || null;
   },
 
 
-  async findByUserId(userId: string, role: string): Promise<Trip[]> {
+ async findByUserId(userId: string, role: string): Promise<Trip[]> {
     let result;
     if (role === UserRole.CUSTOMER) {
       result = await query(
         `SELECT t.*, 
+                jsonb_build_object(
+                'id', u.id,
+                'full_name', u.full_name,
+                'first_name', u.first_name,
+                'last_name', u.last_name,
+                'phone_number', u.phone_number,
+                'email', u.email,
+                'profile_url', u.profile_url,
+                'rating', u.rating
+              ) AS user_details,
+              jsonb_build_object(
+                'id', d.id,
+                'first_name', d.first_name,
+                'last_name', d.last_name,
+                'full_name', d.full_name,
+                'phone_number', d.phone_number,
+                'profile_pic_url', d.profile_pic_url,
+                'rating', d.rating,
+                'current_lat', d.current_lat,
+                'current_lng', d.current_lng
+               -- 'vehicle_number', d.vehicle_number,
+               -- 'vehicle_model', d.vehicle_model,
+               -- 'vehicle_type', d.vehicle_type
+              ) AS driver_details,
               COALESCE(jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) 
               FILTER (WHERE tc.id IS NOT NULL), '[]'::jsonb) AS trip_changes
        FROM trips t 
+       LEFT JOIN users u ON t.user_id = u.id
        LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id 
-       WHERE t.user_id = $1 AND t.trip_status IN ('REQUESTED' ,'CANCELLED', 'COMPLETED')
-       GROUP BY t.trip_id ORDER BY t.created_at DESC;`,
+       LEFT JOIN drivers d ON t.driver_id = d.id
+       WHERE t.user_id = $1 
+       -- AND t.trip_status IN ('REQUESTED' ,'CANCELLED', 'COMPLETED','MID_CANCELLED')
+       GROUP BY t.trip_id, u.id, d.id
+       ORDER BY t.created_at DESC;`,
         [userId]
       );
     }
     else if (role === UserRole.DRIVER) {
       result = await query(
         `SELECT t.*, 
+                jsonb_build_object(
+                'id', u.id,
+                'full_name', u.full_name,
+                'first_name', u.first_name,
+                'last_name', u.last_name,
+                'phone_number', u.phone_number,
+                'email', u.email,
+                'profile_url', u.profile_url,
+                'rating', u.rating
+              ) AS user_details,
+              jsonb_build_object(
+                'id', d.id,
+                'first_name', d.first_name,
+                'last_name', d.last_name,
+                'full_name', d.full_name,
+                'phone_number', d.phone_number,
+                'profile_pic_url', d.profile_pic_url,
+                'rating', d.rating,
+                'current_lat', d.current_lat,
+                'current_lng', d.current_lng
+               -- 'vehicle_number', d.vehicle_number,
+               -- 'vehicle_model', d.vehicle_model,
+               -- 'vehicle_type', d.vehicle_type
+              ) AS driver_details,
               COALESCE(jsonb_agg(to_jsonb(tc) ORDER BY tc.changed_at DESC) 
               FILTER (WHERE tc.id IS NOT NULL), '[]'::jsonb) AS trip_changes
        FROM trips t 
+       LEFT JOIN users u ON t.user_id = u.id
+       LEFT JOIN drivers d ON t.driver_id = d.id
        LEFT JOIN trip_changes tc ON t.trip_id = tc.trip_id 
-       WHERE t.driver_id = $1 AND t.trip_status IN ('REQUESTED' ,'CANCELLED', 'COMPLETED')
-       GROUP BY t.trip_id ORDER BY t.created_at DESC;`,
+       WHERE t.driver_id = $1 
+       AND t.trip_status IN ('REQUESTED' ,'CANCELLED', 'COMPLETED')
+       GROUP BY t.trip_id, u.id, d.id
+       ORDER BY t.created_at DESC;`,
         [userId]
       );
     }
 
     return result?.rows || [];
   },
-
 
   async createTrip(data: Partial<Trip>): Promise<Trip | null> {
 
@@ -376,5 +491,12 @@ export const TripRepository = {
       [driverId]
     );
     return result.rows[0] || null;
+  },
+
+  async skipTrip(tripId: string, driverId: string): Promise<void> {
+    await query(
+      `INSERT INTO trip_skips (driver_id, trip_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;`,
+      [driverId, tripId]
+    );
   },
 };

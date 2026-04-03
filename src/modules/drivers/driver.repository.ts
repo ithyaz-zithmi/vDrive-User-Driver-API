@@ -176,6 +176,10 @@ export const DriverRepository = {
         driverFields.push(`fcm_token = $${paramCount++}`);
         driverValues.push(driverData.fcm_token);
       }
+      if (driverData.rating !== undefined) {
+        driverFields.push(`rating = $${paramCount++}`);
+        driverValues.push(driverData.rating);
+      }
 
       // JSONB updates using merge operator ||
       // 🛡️ Use COALESCE to prevent NULL results when merging
@@ -192,8 +196,18 @@ export const DriverRepository = {
         driverValues.push(JSON.stringify(driverData.availability));
       }
       if (driverData.performance) {
+        // Sync rating to performance object if provided
+        const performanceData = { ...driverData.performance };
+        if (driverData.rating !== undefined) {
+          performanceData.averageRating = driverData.rating;
+        }
+
         driverFields.push(`performance = COALESCE(performance, '{}'::jsonb) || $${paramCount++}`);
-        driverValues.push(JSON.stringify(driverData.performance));
+        driverValues.push(JSON.stringify(performanceData));
+      } else if (driverData.rating !== undefined) {
+        // If only rating is provided, still sync it to performance JSONB
+        driverFields.push(`performance = COALESCE(performance, '{}'::jsonb) || jsonb_build_object('averageRating', $${paramCount++}::numeric)`);
+        driverValues.push(driverData.rating);
       }
       if (driverData.payments) {
         driverFields.push(`payments = COALESCE(payments, '{}'::jsonb) || $${paramCount++}`);

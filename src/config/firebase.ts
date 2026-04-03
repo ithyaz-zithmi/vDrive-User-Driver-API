@@ -44,16 +44,15 @@ const buildMessage = (
     android: {
         priority: 'high',
         notification: {
-            sound: 'default',
-            channelId: 'default',
-            priority: 'high',
+            sound: payload.sound || 'default',
+            channelId: payload.androidChannelId || 'ride_requests',
         },
     },
     apns: {
         headers: { 'apns-priority': '10' },
         payload: {
             aps: {
-                sound: 'default',
+                sound: payload.sound || 'default',
                 contentAvailable: true,
                 badge: 1,
             },
@@ -159,15 +158,15 @@ export const sendToTopic = async (
             android: {
                 priority: 'high',
                 notification: {
-                    sound: 'default',
-                    channelId: 'default',
+                    sound: payload.sound || 'default',
+                    channelId: payload.androidChannelId || 'ride_requests',
                 },
             },
             apns: {
                 headers: { 'apns-priority': '10' },
                 payload: {
                     aps: {
-                        sound: 'default',
+                        sound: payload.sound || 'default',
                         contentAvailable: true,
                     },
                 },

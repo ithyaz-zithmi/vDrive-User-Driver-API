@@ -52,9 +52,14 @@ export const getIO = (): Server => {
 const handleRoomJoins = (socket: Socket): void => {
 
     // Generic room join
-    socket.on('join', (room: string) => {
-        socket.join(room);
-        logger.info(`Socket ${socket.id} joined room: ${room}`);
+    socket.on('join', (data: any) => {
+        const roomName = (typeof data === 'object' && data?.room) ? data.room : data;
+        if (roomName && typeof roomName === 'string') {
+            socket.join(roomName);
+            logger.info(`Socket ${socket.id} joined room: ${roomName}`);
+        } else {
+            logger.warn(`Socket ${socket.id} tried to join invalid room: ${JSON.stringify(data)}`);
+        }
     });
 
     // Generic room leave
@@ -128,6 +133,7 @@ const handleDriverLocation = (socket: Socket): void => {
                 heading: data.heading,
                 eta: data.eta,
             });
+            logger.info(`📡 Broadcasted locationUpdate for trip_${data.rideId} | Lat: ${data.latitude.toFixed(5)} Lng: ${data.longitude.toFixed(5)}`);
         }
     );
 };

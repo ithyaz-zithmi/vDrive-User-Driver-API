@@ -5,6 +5,8 @@ export interface NotificationPayload {
     title: string;
     body: string;
     data?: Record<string, string>;
+    androidChannelId?: string;
+    sound?: string;
 }
 
 export interface NotificationResult {
@@ -22,6 +24,7 @@ export enum UserNotificationType {
     BOOKING_CANCEL = 'BOOKING_CANCELLED',
     RIDE_CANCELLED = 'RIDE_CANCELLED',
     DRIVER_ASSIGNED = 'DRIVER_ASSIGNED',
+    DRIVER_ARRIVING = 'DRIVER_ARRIVING',
     DRIVER_ARRIVED = 'DRIVER_ARRIVED',
     RIDE_STARTED = 'RIDE_STARTED',
     DESTINATION_REACHED = 'DESTINATION_REACHED',

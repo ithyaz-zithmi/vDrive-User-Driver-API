@@ -66,14 +66,33 @@ export const NotificationService = {
         }
 
         try {
+            const isRideRequest = data?.type === 'ride_request' || 
+                                data?.type === 'NEW_RIDE_REQUEST' || 
+                                data?.type === 'SCHEDULED_REMINDER' ||
+                                data?.type === 'TRIP_UNASSIGNED' ||
+                                data?.status === 'REQUESTED'; // Some legacy triggers might use status
+            
+            const androidSound = 'default';
+
             const message: admin.messaging.Message = {
                 notification: { title, body },
                 token,
                 android: {
                     priority: 'high' as const,
                     notification: {
-                        sound: 'default',
+                        sound: androidSound,
                         channelId: 'ride_requests',
+                        priority: 'high',
+                    },
+                },
+                apns: {
+                    headers: { 'apns-priority': '10' },
+                    payload: {
+                        aps: {
+                            sound: 'default',
+                            badge: 1,
+                            contentAvailable: true,
+                        },
                     },
                 },
                 ...(data && { data }),

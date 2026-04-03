@@ -214,4 +214,5 @@ export interface UpdateDriverInput extends Partial<
   language?: string;
   is_vibration_enabled?: boolean;
   fcm_token?: string;
+  rating?: number;
 }

@@ -8,6 +8,7 @@ export const DriverNotifications = {
             type: DriverNotificationType.FORCE_LOGOUT,
             title: 'Session Ended',
             body: 'Your account was accessed from another device.',
+            androidChannelId: 'ride_requests',
         }),
 
     newRideRequest: (fcmToken: string, bookingId: string, pickup: string, drop: string) =>
@@ -16,6 +17,7 @@ export const DriverNotifications = {
             title: 'New Ride Request',
             body: `Pickup: ${pickup} → Drop: ${drop}`,
             data: { bookingId, pickup, drop },
+            androidChannelId: 'ride_requests',
         }),
 
     rideStarted: (fcmToken: string, bookingId: string) =>
@@ -24,22 +26,25 @@ export const DriverNotifications = {
             title: 'Ride Started',
             body: `Your ride has started.`,
             data: { bookingId },
+            androidChannelId: 'ride_requests',
         }),
 
-    rideCancelled: (fcmToken: string, bookingId: string, reason?: string) =>
+    rideCancelled: (fcmToken: string, bookingId: string, reason?: string, cancelledBy?: string) =>
         sendToDevice(fcmToken, {
             type: DriverNotificationType.RIDE_CANCELLED,
             title: 'Ride Cancelled',
-            body: reason || 'The ride has been cancelled by the user.',
-            data: { bookingId },
+            body: reason || 'The ride has been cancelled.',
+            data: { bookingId, reason: reason ?? '', cancelledBy: cancelledBy ?? '' },
+            androidChannelId: 'ride_requests',
         }),
 
-    bookingCancelled: (fcmToken: string, bookingId: string, reason?: string) =>
+    bookingCancelled: (fcmToken: string, bookingId: string, reason?: string, cancelledBy?: string) =>
         sendToDevice(fcmToken, {
             type: DriverNotificationType.BOOKING_CANCELLED,
             title: 'Booking Cancelled',
             body: reason || 'Your booking has been cancelled.',
-            data: { bookingId, reason: reason ?? '' },
+            data: { bookingId, reason: reason ?? '', cancelledBy: cancelledBy ?? '' },
+            androidChannelId: 'ride_requests',
         }),
 
     rideCompleted: (fcmToken: string, bookingId: string, amount: string) =>
@@ -48,6 +53,7 @@ export const DriverNotifications = {
             title: 'Ride Completed',
             body: `Your ride has been completed. You earned ₹${amount}.`,
             data: { bookingId, amount },
+            androidChannelId: 'ride_requests',
         }),
 
     paymentReceived: (fcmToken: string, amount: string, bookingId: string) =>
@@ -56,6 +62,7 @@ export const DriverNotifications = {
             title: 'Payment Received',
             body: `You received ₹${amount} for your ride.`,
             data: { bookingId, amount },
+            androidChannelId: 'ride_requests',
         }),
 
     documentApproved: (fcmToken: string, documentType: string) =>
@@ -64,6 +71,7 @@ export const DriverNotifications = {
             title: 'Document Approved',
             body: `Your ${documentType} has been approved.`,
             data: { documentType },
+            androidChannelId: 'ride_requests',
         }),
 
     documentRejected: (fcmToken: string, documentType: string, reason: string) =>
@@ -72,6 +80,7 @@ export const DriverNotifications = {
             title: 'Document Rejected',
             body: `Your ${documentType} was rejected. Reason: ${reason}`,
             data: { documentType, reason },
+            androidChannelId: 'ride_requests',
         }),
 
     kycApproved: (fcmToken: string) =>
@@ -79,6 +88,7 @@ export const DriverNotifications = {
             type: DriverNotificationType.KYC_APPROVED,
             title: 'KYC Approved',
             body: 'Your KYC verification has been approved. You can now start accepting rides.',
+            androidChannelId: 'ride_requests',
         }),
 
     kycRejected: (fcmToken: string, reason: string) =>
@@ -87,6 +97,7 @@ export const DriverNotifications = {
             title: 'KYC Rejected',
             body: `Your KYC was rejected. Reason: ${reason}`,
             data: { reason },
+            androidChannelId: 'ride_requests',
         }),
 
     walletCredited: (fcmToken: string, amount: string, balance: string) =>
@@ -95,6 +106,7 @@ export const DriverNotifications = {
             title: 'Wallet Credited',
             body: `₹${amount} added to your wallet. Balance: ₹${balance}`,
             data: { amount, balance },
+            androidChannelId: 'ride_requests',
         }),
 
     walletDebited: (fcmToken: string, amount: string, balance: string) =>
@@ -103,5 +115,6 @@ export const DriverNotifications = {
             title: 'Wallet Debited',
             body: `₹${amount} deducted from your wallet. Balance: ₹${balance}`,
             data: { amount, balance },
+            androidChannelId: 'ride_requests',
         }),
 };

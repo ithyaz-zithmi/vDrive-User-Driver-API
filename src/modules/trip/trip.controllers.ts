@@ -18,7 +18,15 @@ export const TripController = {
   async getTrips(req: Request, res: Response, next: NextFunction) {
     try {
       const { booking_type } = req.query;
-      const trips = await TripService.getTrips(booking_type as string);
+      const driverId = (req as any).user?.id;
+      let onboardingStatus = (req as any).user?.onboarding_status;
+
+      if (!onboardingStatus && driverId) {
+        const driver = await DriverRepository.findById(driverId);
+        onboardingStatus = driver?.onboarding_status;
+      }
+
+      const trips = await TripService.getTrips(booking_type as string, driverId, onboardingStatus);
       if (!trips) {
         throw { statusCode: 204, message: 'Trip data are Empty' };
       }
@@ -41,8 +49,8 @@ export const TripController = {
 
   async getTripByUserId(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req?.params?.id;
-      const { role } = req.body;
+      const id = req?.params?.id as string;
+      const role = req.body.role as string;
       const trip = await TripService.getTripByUserId(id, role);
       return successResponse(res, 200, 'Trip fetched successfully', trip);
     } catch (err: any) {
@@ -70,6 +78,14 @@ export const TripController = {
       if (userfcmtoken && trip.trip_id) {
         await UserNotifications.bookingConfirmed(userfcmtoken, trip.trip_id);
       }
+
+      // If scheduled ride, broadcast to all eligible drivers (Online & Offline)
+      if (trip.booking_type === BookingType.SCHEDULED) {
+        const { TripSchedulerService } = require('./trip-scheduler.service');
+        const io = req.app.get('io');
+        await TripSchedulerService.broadcastNewScheduledRide(trip, io);
+      }
+
       return successResponse(res, 201, 'Trip created successfully', trip);
     } catch (err: any) {
       logger.error(`createTrip error: ${err.message}`);
@@ -130,7 +146,7 @@ export const TripController = {
 
   async getActiveTripByUserId(req: Request, res: Response, next: NextFunction) {
     try {
-      const trip = await TripService.getActiveTripByUserId(req?.params?.id);
+      const trip = await TripService.getActiveTripByUserId(req?.params?.id as string);
       return successResponse(res, 200, 'Trip fetched successfully', trip);
     } catch (err: any) {
       logger.error(`getTripById error: ${err.message}`);
@@ -139,22 +155,7 @@ export const TripController = {
   },
 
 
-  async acceptTripController(req: Request, res: Response) {
-    const { tripId, driverId } = req.body;
-    const io = req.app.get('io');
 
-    try {
-      const trip = await TripService.acceptTrip(tripId, driverId);
-
-      return res.status(200).json({
-        success: true,
-        message: "Trip accepted successfully",
-        trip
-      });
-    } catch (error) {
-      return res.status(500).json({ success: false, message: "Could not accept trip" });
-    }
-  },
 
   async cancelTrip(req: Request, res: Response) {
     const { id } = req.params;
@@ -162,7 +163,7 @@ export const TripController = {
     const io = req.app.get('io');
 
     try {
-      const trip = await TripService.cancelTrip(id, trip_status, cancel_reason, cancel_by, notes);
+      const trip = await TripService.cancelTrip(id as string, trip_status, cancel_reason, cancel_by, notes);
       const userfcmtoken = trip.user_id
         ? await UserRepository.getFcmTokenById(trip.user_id)
         : null;
@@ -247,6 +248,17 @@ export const TripController = {
       return successResponse(res, 200, 'Driver arrived at pickup successfully', trip);
     } catch (err: any) {
       logger.error(`arrivedTrip error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async arrivingTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const trip = await TripService.arrivingTrip(id as string);
+      return successResponse(res, 200, 'Driver is arriving at pickup', trip);
+    } catch (err: any) {
+      logger.error(`arrivingTrip error: ${err.message}`);
       next(err);
     }
   },
@@ -468,8 +480,8 @@ export const TripController = {
       const { LocationHistoryRepository } = require('../drivers/locationHistory.repository');
 
       const [points, summary] = await Promise.all([
-        LocationHistoryRepository.getByTripId(id),
-        LocationHistoryRepository.getTripRouteSummary(id),
+        LocationHistoryRepository.getByTripId(id as string),
+        LocationHistoryRepository.getTripRouteSummary(id as string),
       ]);
 
       return successResponse(res, 200, 'Trip location history fetched', {
@@ -480,6 +492,21 @@ export const TripController = {
       });
     } catch (err: any) {
       logger.error(`getTripLocationHistory error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async skipTrip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id: tripId } = req.params;
+      const driverId = (req as any).user?.id;
+
+      if (!driverId) throw { statusCode: 401, message: 'Driver authentication failed' };
+
+      await TripService.skipTrip(tripId as string, driverId);
+      return successResponse(res, 200, 'Trip skipped successfully');
+    } catch (err: any) {
+      logger.error(`skipTrip error: ${err.message}`);
       next(err);
     }
   },
