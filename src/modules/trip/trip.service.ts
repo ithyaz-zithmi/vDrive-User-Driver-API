@@ -28,6 +28,7 @@ export const TripService = {
     return await TripRepository.findActiveRequests(bookingType, driverId);
   },
 
+  
   async getAllTripsWithChanges() {
     return await TripRepository.getAllTripsWithChanges();
   },
@@ -646,18 +647,23 @@ export const TripService = {
     return updatedTrip;
   },
 
-  async completeTrip(tripId: string) {
+  async completeTrip(tripId: string, distance_km?: number, trip_duration_minutes?: number) {
     const trip = await TripRepository.findById(tripId);
     if (!trip) throw { statusCode: 404, message: 'Trip not found' };
 
     await this.updateTrip(tripId, {
       trip_status: TripStatus.COMPLETED,
       ended_at: new Date(),
+      distance_km: distance_km ?? trip.distance_km,
+      trip_duration_minutes: trip_duration_minutes ?? trip.trip_duration_minutes,
       payment_status: 'PAID' as any, // Simplified
     });
 
     const driverId = trip.driver_id;
     if (driverId) {
+      // 📈 Update persistent statistics in the drivers table
+      await DriverRepository.incrementStats(driverId, trip.total_fare || 0);
+
       const driver = await DriverRepository.findById(driverId);
 
       // Check if driver has ANY remaining upcoming scheduled rides

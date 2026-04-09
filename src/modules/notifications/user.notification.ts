@@ -10,11 +10,12 @@ export const UserNotifications = {
             body: 'Your account was accessed from another device.',
             androidChannelId: 'default',
         }),
-    otpSent: (fcmToken: string) =>
+   otpSent: (fcmToken: string, otp: string) =>
         sendToDevice(fcmToken, {
             type: UserNotificationType.OTP_SENT,
             title: 'OTP Sent',
-            body: 'Your OTP has been sent to your registered mobile number.',
+            body: `Your OTP has been sent to your registered mobile number. OTP: ${otp}`,
+            data: { otp },
             androidChannelId: 'default',
         }),
 

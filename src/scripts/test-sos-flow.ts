@@ -19,7 +19,7 @@ async function testSosFlow() {
   try {
     // 2. Trigger SOS
     logger.info(`1. Triggering SOS for Driver: ${DRIVER_ID}`);
-    const sosEvent = await SosService.triggerSos(DRIVER_ID);
+    const sosEvent = await SosService.triggerSos(DRIVER_ID, 'driver');
     logger.info('Triggered SOS Event ID: ' + sosEvent.id);
     logger.info('Enriched Driver Info: ' + JSON.stringify((sosEvent as any).driver || 'None'));
     logger.info('Enriched Trip Info: ' + JSON.stringify((sosEvent as any).trip || 'None'));

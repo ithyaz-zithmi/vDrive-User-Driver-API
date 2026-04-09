@@ -233,7 +233,8 @@ export const TripController = {
   async completeTrip(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const trip = await TripService.completeTrip(id as string);
+      const { distance_km, trip_duration_minutes } = req.body;
+      const trip = await TripService.completeTrip(id as string, distance_km, trip_duration_minutes);
       return successResponse(res, 200, 'Trip completed successfully', trip);
     } catch (err: any) {
       logger.error(`completeTrip error: ${err.message}`);

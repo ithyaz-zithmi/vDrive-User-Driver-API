@@ -109,6 +109,7 @@ export interface Driver {
   status: DriverStatus;
   rating?: number;
   total_trips?: number;
+  total_earnings?: number;
   availability?: Availability;
   kyc_status?: KYC;
   credit?: Credit;
@@ -181,7 +182,10 @@ export interface CreateDriverInput {
   availability?: Availability;
   performance?: Performance;
   payments?: Payments;
+  rating?: number;
   is_trip_verified?: boolean;
+  total_trips?: number;
+  total_earnings?: number;
   language?: string;
   is_vibration_enabled?: boolean;
   fcm_token?: string;
@@ -215,4 +219,6 @@ export interface UpdateDriverInput extends Partial<
   is_vibration_enabled?: boolean;
   fcm_token?: string;
   rating?: number;
+  total_earnings?: number;
+  total_trips?: number;
 }

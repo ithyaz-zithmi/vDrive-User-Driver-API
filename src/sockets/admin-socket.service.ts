@@ -1,4 +1,4 @@
-import { logger } from "../shared/logger";
+import { logger } from "../shared/logger"; // comment to trigger restart
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import { Server } from 'socket.io';
 

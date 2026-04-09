@@ -198,18 +198,41 @@ export const DriverController = {
         status as string
       );
       // Map to frontend expected format
-      const mappedActivity = activity.map((trip: any) => ({
-        id: trip.id,
-        date: new Date(trip.created_at).toLocaleDateString(),
-        time: new Date(trip.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        pickup: trip.pickup_address,
-        drop: trip.drop_address,
-        amount: parseFloat(trip.total_fare),
-        distance: trip.distance_km + ' km',
-        duration: '20 min', // Mock duration as it might not be in DB
-        status: trip.trip_status === 'COMPLETED' ? 'Completed' : 'Cancelled',
-        customer: { name: trip.passenger_name || 'Customer' }
-      }));
+      const mappedActivity = activity.map((trip: any) => {
+        let passenger = { name: 'Customer', phone: undefined };
+        try {
+          if (trip.passenger_details) {
+            passenger = typeof trip.passenger_details === 'string' 
+              ? JSON.parse(trip.passenger_details) 
+              : trip.passenger_details;
+          }
+        } catch (e) {
+          console.error('Error parsing passenger_details', e);
+        }
+
+        return {
+          id: trip.trip_id || trip.id,
+          trip_id: trip.trip_id || trip.id,
+          trip_code: trip.trip_code || trip.booking_code,
+          date: new Date(trip.created_at).toLocaleDateString(),
+          time: new Date(trip.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          pickup: trip.pickup_address,
+          drop: trip.drop_address,
+          amount: parseFloat(trip.total_fare || '0'),
+          distance_km: trip.distance_km,
+          distance: trip.distance_km + ' km',
+          duration: trip.trip_duration_minutes ? trip.trip_duration_minutes + ' min' : '20 min',
+          status: trip.trip_status === 'COMPLETED' ? 'Completed' : trip.trip_status === 'CANCELLED' ? 'Cancelled' : trip.trip_status,
+          payment_method: trip.payment_method,
+          payment_status: trip.payment_status,
+          rating: trip.rating,
+          feedback: trip.feedback,
+          customer: { 
+            name: trip.passenger_name || passenger.name || 'Customer',
+            phone: passenger.phone
+          }
+        };
+      });
 
       return successResponse(res, 200, 'Ride activity fetched successfully', mappedActivity);
     } catch (err) {
@@ -276,16 +299,19 @@ export const DriverController = {
       const driverId = req.params.id as string;
       const activity = await TripRepository.findActivityByDriverId(driverId);
       
-      const transactions = activity.filter((t: any) => t.trip_status === 'COMPLETED').map((t: any) => ({
+      const transactions = activity.filter((t: any) => t.trip_status === 'COMPLETED' || t.trip_status === 'MID_CANCELLED').map((t: any) => ({
         id: t.trip_id || t.id,
-        title: 'Ride Earnings',
-        amount: parseFloat(t.total_fare),
+        trip_id: t.trip_id || t.id,
+        trip_code: t.trip_code || t.booking_code,
+        title: t.trip_status === 'COMPLETED' ? 'Ride Earnings' : 'Cancellation Fee',
+        amount: parseFloat(t.total_fare || '0'),
         date: new Date(t.created_at).toLocaleDateString(),
         time: new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         pickup: t.pickup_address,
         drop: t.drop_address,
         distance: t.distance_km ? `${t.distance_km} km` : undefined,
-        status: 'Completed'
+        status: t.trip_status === 'COMPLETED' ? 'Completed' : 'Cancelled',
+        payment_method: t.payment_method,
       }));
 
       return successResponse(res, 200, 'Earnings transactions fetched successfully', transactions);

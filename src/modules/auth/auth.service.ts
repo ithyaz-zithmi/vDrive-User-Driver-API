@@ -212,7 +212,7 @@ export const AuthService = {
       await AuthRepository.saveHashedOtp(phone_number, role, otpHash, expires_at, 1,
         currentRequestCount);
       if (userData?.fcm_token) {
-        await UserNotifications.otpSent(userData.fcm_token);
+        await UserNotifications.otpSent(userData.fcm_token,otp);
       }
 
       return { 

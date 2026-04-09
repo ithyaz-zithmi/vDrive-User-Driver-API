@@ -97,9 +97,9 @@ export const TripSchedulerService = {
 
             if (result.rows.length === 0) return;
 
-            // 2. Fetch all drivers with active status and subscription (Online & Offline)
+            // 2. Fetch UNIQUE fcm_tokens for drivers with active status and subscription (Online & Offline)
             const eligibleDrivers = await query(
-                `SELECT id, fcm_token FROM drivers 
+                `SELECT DISTINCT fcm_token FROM drivers 
                  WHERE status = 'active'
                  AND onboarding_status = 'SUBSCRIPTION_ACTIVE'
                  AND fcm_token IS NOT NULL`
@@ -113,15 +113,17 @@ export const TripSchedulerService = {
                         `A scheduled ride is starting soon at ${trip.pickup_address}.`,
                         {
                             type: 'ride_request',
-                            trip_id: trip.trip_id,
-                            pickup_address: trip.pickup_address,
-                            drop_address: trip.drop_address,
+                            trip_id: String(trip.trip_id || ''),
+                            pickup_address: String(trip.pickup_address || ''),
+                            drop_address: String(trip.drop_address || ''),
                             total_fare: trip.total_fare?.toString() || '--',
                             distance_km: trip.distance_km?.toString() || '--',
                             trip_duration_minutes: trip.trip_duration_minutes?.toString() || '--',
-                            ride_type: trip.ride_type,
-                            booking_type: trip.booking_type,
-                            scheduled_start_time: trip.scheduled_start_time.toISOString(),
+                            ride_type: String(trip.ride_type || ''),
+                            booking_type: String(trip.booking_type || ''),
+                            scheduled_start_time: trip.scheduled_start_time instanceof Date 
+                                ? trip.scheduled_start_time.toISOString() 
+                                : String(trip.scheduled_start_time || ''),
                         }
                     );
                 }
@@ -136,9 +138,9 @@ export const TripSchedulerService = {
      */
     async broadcastNewScheduledRide(trip: any, io?: any) {
         try {
-            // Fetch all drivers with active status and subscription (Online & Offline)
+            // Fetch UNIQUE fcm_tokens for drivers with active status and subscription (Online & Offline)
             const eligibleDrivers = await query(
-                `SELECT id, fcm_token FROM drivers 
+                `SELECT DISTINCT fcm_token FROM drivers 
                  WHERE status = 'active'
                  AND onboarding_status = 'SUBSCRIPTION_ACTIVE'
                  AND fcm_token IS NOT NULL`
@@ -151,17 +153,17 @@ export const TripSchedulerService = {
                     `A new scheduled ride is available for ${trip.scheduled_start_time}. Pickup: ${trip.pickup_address}`,
                     {
                         type: 'ride_request',
-                        trip_id: trip.trip_id,
-                        pickup_address: trip.pickup_address,
-                        drop_address: trip.drop_address,
+                        trip_id: String(trip.trip_id || ''),
+                        pickup_address: String(trip.pickup_address || ''),
+                        drop_address: String(trip.drop_address || ''),
                         total_fare: trip.total_fare?.toString() || '--',
                         distance_km: trip.distance_km?.toString() || '--',
                         trip_duration_minutes: trip.trip_duration_minutes?.toString() || '--',
-                        ride_type: trip.ride_type,
-                        booking_type: trip.booking_type,
+                        ride_type: String(trip.ride_type || ''),
+                        booking_type: String(trip.booking_type || ''),
                         scheduled_start_time: trip.scheduled_start_time instanceof Date 
                             ? trip.scheduled_start_time.toISOString() 
-                            : trip.scheduled_start_time,
+                            : String(trip.scheduled_start_time || ''),
                     }
                 );
             }

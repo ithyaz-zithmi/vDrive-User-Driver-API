@@ -2,46 +2,11 @@
 import * as admin from 'firebase-admin';
 import { query } from '../../shared/database';
 import { logger } from '../../shared/logger';
-import * as path from 'path';
-import * as fs from 'fs';
+import { sendToDevice } from '../../config/firebase';
 
-/* ================================================================
-   FIREBASE ADMIN INITIALIZATION
-   ================================================================ */
+// 🛡️ Firebase is already initialized in src/app.ts via src/config/firebase.ts
+// We just import 'admin' and it will be available.
 
-let firebaseInitialized = false;
-
-function initializeFirebase(): void {
-    if (firebaseInitialized) return;
-
-    const serviceAccountPath = path.resolve(
-        __dirname,
-        '../../config/serviceAccountKey.json',
-    );
-
-    if (!fs.existsSync(serviceAccountPath)) {
-        logger.warn(
-            '⚠️  Firebase service account key not found at: ' + serviceAccountPath,
-        );
-        logger.warn(
-            '   Download it from Firebase Console → Project Settings → Service Accounts',
-        );
-        return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const serviceAccount = require(serviceAccountPath);
-
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
-
-    firebaseInitialized = true;
-    logger.info('✅ Firebase Admin SDK initialized');
-}
-
-// Initialize on module load
-initializeFirebase();
 
 /* ================================================================
    NOTIFICATION SERVICE
@@ -60,72 +25,33 @@ export const NotificationService = {
         body: string,
         data?: Record<string, string>,
     ): Promise<string | null> {
-        if (!firebaseInitialized) {
-            logger.error('Firebase not initialized — cannot send notification');
-            return null;
-        }
-
         try {
-            const isRideRequest = data?.type === 'ride_request' || 
-                                data?.type === 'NEW_RIDE_REQUEST' || 
-                                data?.type === 'SCHEDULED_REMINDER' ||
-                                data?.type === 'TRIP_UNASSIGNED' ||
-                                data?.status === 'REQUESTED'; // Some legacy triggers might use status
-            
-            const androidSound = 'default';
+            const result = await sendToDevice(token, {
+                title,
+                body,
+                type: data?.type || 'notification',
+                data,
+                // Default to ride_requests if it looks like a ride-related notification
+                androidChannelId: (data?.type === 'ride_request' || data?.type === 'NEW_RIDE_REQUEST') 
+                    ? 'ride_requests' 
+                    : 'default',
+            });
 
-            const message: admin.messaging.Message = {
-                notification: { title, body },
-                token,
-                android: {
-                    priority: 'high' as const,
-                    notification: {
-                        sound: androidSound,
-                        channelId: 'ride_requests',
-                        priority: 'high',
-                    },
-                },
-                apns: {
-                    headers: { 'apns-priority': '10' },
-                    payload: {
-                        aps: {
-                            sound: 'default',
-                            badge: 1,
-                            contentAvailable: true,
-                        },
-                    },
-                },
-                ...(data && { data }),
-            };
-
-            const messageId = await admin.messaging().send(message);
-            logger.info(`✅ Notification sent: ${messageId}`);
-            return messageId;
-        } catch (error: any) {
-            logger.error(`❌ Failed to send notification: ${error.message}`);
-
-            // If the token is invalid/expired, auto-clear from database
-            if (
-                error.code === 'messaging/registration-token-not-registered' ||
-                error.code === 'messaging/invalid-registration-token'
-            ) {
-                logger.warn('Token is invalid — clearing from database');
-                try {
-                    await query(
-                        'UPDATE drivers SET fcm_token = NULL, updated_at = NOW() WHERE fcm_token = $1',
-                        [token],
-                    );
-                    await query(
-                        'UPDATE users SET fcm_token = NULL, updated_at = NOW() WHERE fcm_token = $1',
-                        [token],
-                    );
-                    logger.info('✅ Stale FCM token cleared from database (Drivers/Users)');
-                } catch (dbError: any) {
-                    logger.error(`Failed to clear stale token: ${dbError.message}`);
-                }
+            if (result.success) {
+                return result.messageId || 'success';
             }
 
-            throw error;
+            // Handle invalid token cleanup if the error indicates it
+            if (result.error === 'INVALID_TOKEN') {
+                logger.warn(`Clearing invalid token for: ${token}`);
+                await query('UPDATE drivers SET fcm_token = NULL WHERE fcm_token = $1', [token]);
+                await query('UPDATE users SET fcm_token = NULL WHERE fcm_token = $1', [token]);
+            }
+
+            return null;
+        } catch (error: any) {
+            logger.error(`❌ NotificationService.sendNotification error: ${error.message}`);
+            return null;
         }
     },
 

@@ -2,10 +2,10 @@ import { query } from '../../shared/database';
 import { SosEvent, SosLocation, TrustedContact } from './sos.model';
 
 export class SosRepository {
-  static async createSosEvent(driver_id: string, trip_id?: string): Promise<SosEvent> {
+  static async createSosEvent(user_id: string, user_type: 'driver' | 'user', trip_id?: string): Promise<SosEvent> {
     const result = await query(
-      'INSERT INTO sos_events (driver_id, trip_id, status) VALUES ($1, $2, $3) RETURNING *',
-      [driver_id, trip_id, 'ACTIVE']
+      'INSERT INTO sos_events (user_id, user_type, trip_id, status) VALUES ($1, $2, $3, $4) RETURNING *',
+      [user_id, user_type, trip_id, 'ACTIVE']
     );
     return result.rows[0];
   }
@@ -24,34 +24,34 @@ export class SosRepository {
     );
   }
 
-  static async findActiveSosByDriver(driver_id: string): Promise<SosEvent | null> {
+  static async findActiveSosByUser(user_id: string, user_type: 'driver' | 'user'): Promise<SosEvent | null> {
     const result = await query(
-      "SELECT * FROM sos_events WHERE driver_id = $1 AND status = 'ACTIVE' LIMIT 1",
-      [driver_id]
+      "SELECT * FROM sos_events WHERE user_id = $1 AND user_type = $2 AND status = 'ACTIVE' LIMIT 1",
+      [user_id, user_type]
     );
     return result.rows[0] || null;
   }
 
-  static async getTrustedContacts(driver_id: string): Promise<TrustedContact[]> {
+  static async getTrustedContacts(user_id: string, user_type: 'driver' | 'user'): Promise<TrustedContact[]> {
     const result = await query(
-      'SELECT * FROM trusted_contacts WHERE driver_id = $1',
-      [driver_id]
+      'SELECT * FROM trusted_contacts WHERE user_id = $1 AND user_type = $2',
+      [user_id, user_type]
     );
     return result.rows;
   }
 
-  static async addTrustedContact(driver_id: string, name: string, phone: string): Promise<TrustedContact> {
+  static async addTrustedContact(user_id: string, user_type: 'driver' | 'user', name: string, phone: string, relationship?: string): Promise<TrustedContact> {
     const result = await query(
-      'INSERT INTO trusted_contacts (driver_id, name, phone) VALUES ($1, $2, $3) RETURNING *',
-      [driver_id, name, phone]
+      'INSERT INTO trusted_contacts (user_id, user_type, name, phone, relationship) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [user_id, user_type, name, phone, relationship || null]
     );
     return result.rows[0];
   }
 
-  static async removeTrustedContact(id: number, driver_id: string): Promise<void> {
+  static async removeTrustedContact(id: number, user_id: string): Promise<void> {
     await query(
-      'DELETE FROM trusted_contacts WHERE id = $1 AND driver_id = $2',
-      [id, driver_id]
+      'DELETE FROM trusted_contacts WHERE id = $1 AND user_id = $2',
+      [id, user_id]
     );
   }
 }

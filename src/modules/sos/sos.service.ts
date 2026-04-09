@@ -1,33 +1,48 @@
 import axios from 'axios';
 import config from '../../config';
-import { getIO, emitToRoom } from '../../shared/socket';
+import { getIO, emitToRoom, emitToAll } from '../../shared/socket';
 import { logger } from '../../shared/logger';
 import { SosRepository } from './sos.repository';
 import { DriverRepository } from '../drivers/driver.repository';
 import { TripRepository } from '../trip/trip.repository';
 
 export class SosService {
-  static async triggerSos(driver_id: string, trip_id?: string) {
-    // 1. Check if SOS already active for this driver
-    let sosEvent = await SosRepository.findActiveSosByDriver(driver_id);
+  static async triggerSos(user_id: string, user_type: 'driver' | 'user', trip_id?: string) {
+    // 1. Check if SOS already active for this user
+    let sosEvent = await SosRepository.findActiveSosByUser(user_id, user_type);
     if (sosEvent) {
       return sosEvent;
     }
 
     // 2. Create new SOS event
-    sosEvent = await SosRepository.createSosEvent(driver_id, trip_id);
+    sosEvent = await SosRepository.createSosEvent(user_id, user_type, trip_id);
 
     // 3. Fetch Enriched Data for Alerting
-    const driver = await DriverRepository.findById(driver_id);
+    let enrichedUserData: any = null;
+
+    if (user_type === 'driver') {
+      const driver = await DriverRepository.findById(user_id);
+      if (driver) {
+        enrichedUserData = {
+          full_name: driver.full_name || `${driver.first_name} ${driver.last_name}`,
+          phone_number: driver.phone_number,
+          vdrive_id: driver.vdrive_id,
+          type: 'driver'
+        };
+      }
+    } else {
+      // For user type, we can add user lookup here if needed
+      enrichedUserData = {
+        user_id,
+        type: 'user'
+      };
+    }
+
     const trip = trip_id ? await TripRepository.findById(trip_id) : null;
 
     const enrichedData = {
       ...sosEvent,
-      driver: driver ? {
-        full_name: driver.full_name || `${driver.first_name} ${driver.last_name}`,
-        phone_number: driver.phone_number,
-        vdrive_id: driver.vdrive_id
-      } : null,
+      user: enrichedUserData,
       trip: trip ? {
         pickup_address: trip.pickup_address,
         drop_address: trip.drop_address,
@@ -37,8 +52,8 @@ export class SosService {
 
     // 4. Emit via Socket.io
     const io = getIO();
-    // Confirm to driver
-    io.to(`driver_${driver_id}`).emit('sos_triggered', sosEvent);
+    // Confirm to the user/driver
+    io.to(`${user_type}_${user_id}`).emit('sos_triggered', sosEvent);
     
     // Notify trip room if applicable
     if (trip_id) {
@@ -50,14 +65,14 @@ export class SosService {
 
     // 5. Trigger Webhook to Admin Backend
     try {
-      await this.sendWebhookWithRetry('SOS_TRIGGERED', 'Driver has triggered an SOS alert!', enrichedData);
+      await this.sendWebhookWithRetry('SOS_TRIGGERED', `${user_type} has triggered an SOS alert!`, enrichedData);
       logger.info(`SOS webhook sent to Admin Backend for SOS ID: ${sosEvent.id}`);
     } catch (error) {
       logger.error('Failed to send SOS webhook to Admin Backend after retries:', error);
     }
 
     // 6. Logic for SMS to trusted contacts (hook)
-    const contacts = await SosRepository.getTrustedContacts(driver_id);
+    const contacts = await SosRepository.getTrustedContacts(user_id, user_type);
     this.sendSmsToContacts(contacts, sosEvent);
 
     return enrichedData;
@@ -89,10 +104,9 @@ export class SosService {
   static async resolveSos(sos_id: string) {
     await SosRepository.resolveSosEvent(sos_id);
     
-    // Notify all parties
-    const io = getIO();
-    io.emit('sos_resolved', { sos_id });
-    io.to('admins').emit('admin_sos_resolved', { sos_id });
+    // Notify all parties using safe helpers (won't throw if socket not ready)
+    emitToAll('sos_resolved', { sos_id });
+    emitToRoom('admins', 'admin_sos_resolved', { sos_id });
 
     // Notify Admin Backend
      try {
@@ -121,9 +135,9 @@ export class SosService {
 
   private static async sendSmsToContacts(contacts: any[], sosEvent: any) {
     // Placeholder for actual SMS integration
-    logger.info(`[SMS STUB] Sending SOS alerts to ${contacts.length} trusted contacts for Driver ID: ${sosEvent.driver_id}`);
+    logger.info(`[SMS STUB] Sending SOS alerts to ${contacts.length} trusted contacts for User ID: ${sosEvent.user_id}`);
     contacts.forEach(contact => {
-      logger.info(`[SMS STUB] Sending to ${contact.phone}: "Emergency! ${contact.name}, a driver you know has triggered an SOS. Track: [link]"`);
+      logger.info(`[SMS STUB] Sending to ${contact.phone}: "Emergency! ${contact.name}, someone you know has triggered an SOS. Track: [link]"`);
     });
   }
 }

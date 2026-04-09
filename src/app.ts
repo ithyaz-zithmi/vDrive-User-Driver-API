@@ -1,5 +1,7 @@
 // src/app.ts
 import express from 'express';
+import './config/firebase'; // 🔥 Initialize Firebase Admin
+
 import { errorHandler } from './shared/errorHandler';
 import { logger } from './shared/logger';
 import { middlewares } from './shared/middlewares';

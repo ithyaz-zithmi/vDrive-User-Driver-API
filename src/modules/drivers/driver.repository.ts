@@ -23,8 +23,8 @@ export const DriverRepository = {
       const driverResult = await client.query(
         `INSERT INTO drivers (
           first_name, last_name, phone_number, email, profile_pic_url, date_of_birth, gender, 
-          address, role, status, kyc, onboarding_status, documents_submitted, credit, performance, payments, is_trip_verified, language, device_id, is_vibration_enabled
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          address, role, status, kyc, onboarding_status, documents_submitted, credit, performance, payments, is_trip_verified, language, device_id, is_vibration_enabled, total_earnings
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING *`,
         [
           driverData.first_name,
@@ -55,6 +55,7 @@ export const DriverRepository = {
           driverData.language || 'en',
           driverData.device_id || null,
           driverData.is_vibration_enabled ?? true,
+          driverData.total_earnings || 0,
         ]
       );
 
@@ -176,9 +177,13 @@ export const DriverRepository = {
         driverFields.push(`fcm_token = $${paramCount++}`);
         driverValues.push(driverData.fcm_token);
       }
-      if (driverData.rating !== undefined) {
-        driverFields.push(`rating = $${paramCount++}`);
-        driverValues.push(driverData.rating);
+      if (driverData.total_earnings !== undefined) {
+        driverFields.push(`total_earnings = $${paramCount++}`);
+        driverValues.push(driverData.total_earnings);
+      }
+      if (driverData.total_trips !== undefined) {
+        driverFields.push(`total_trips = $${paramCount++}`);
+        driverValues.push(driverData.total_trips);
       }
 
       // JSONB updates using merge operator ||
@@ -452,6 +457,7 @@ export const DriverRepository = {
       status: driver.status,
       rating: parseFloat(driver.rating) || 0,
       total_trips: driver.total_trips || 0,
+      total_earnings: parseFloat(driver.total_earnings) || 0,
       availability: safeParse(driver.availability),
       kyc_status: safeParse(driver.kyc),
       onboarding_status: driver.onboarding_status,
@@ -601,4 +607,22 @@ export const DriverRepository = {
       [fcmToken, driverId],
     );
   },
+
+  /**
+   * Increment driver trip statistics atomically
+   */
+  async incrementStats(driverId: string, earnings: number): Promise<void> {
+    const sql = `
+      UPDATE drivers 
+      SET 
+        total_trips = total_trips + 1,
+        total_earnings = total_earnings + $1,
+        performance = COALESCE(performance, jsonb_build_object('totalTrips', 0, 'averageRating', 0, 'cancellations', 0, 'lastActive', null)) || 
+                      jsonb_build_object('totalTrips', (COALESCE(performance->>'totalTrips', '0')::int + 1)),
+        payments = COALESCE(payments, jsonb_build_object('totalEarnings', 0, 'pendingPayout', 0, 'commissionPaid', 0)) || 
+                   jsonb_build_object('totalEarnings', (COALESCE(payments->>'totalEarnings', '0')::numeric + $1))
+      WHERE id = $2
+    `;
+    await query(sql, [earnings, driverId]);
+  }
 };

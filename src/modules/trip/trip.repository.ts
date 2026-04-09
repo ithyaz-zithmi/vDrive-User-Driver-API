@@ -23,7 +23,7 @@ export const TripRepository = {
     //   LEFT JOIN users u ON t.user_id = u.id
     //   WHERE (
     //     (t.trip_status = 'REQUESTED'`;
- let sql = `
+    let sql = `
       SELECT t.*,
         jsonb_build_object(
             'id', u.id,
@@ -37,35 +37,40 @@ export const TripRepository = {
         ) AS user_details
       FROM trips t 
       LEFT JOIN users u ON t.user_id = u.id
-      WHERE t.trip_status = 'REQUESTED'
     `;
 
+    const whereConditions: string[] = [];
+    const statusConditions: string[] = [];
+
+    // Part 1: Requested rides (with optional skip filtering)
+    let requestedCond = `t.trip_status = 'REQUESTED'`;
     if (driverId) {
-      // 🛡️ Filter out trips already skipped by this driver
-      sql += ` AND NOT EXISTS (
+      requestedCond += ` AND NOT EXISTS (
         SELECT 1 FROM trip_skips ts 
         WHERE ts.trip_id = t.trip_id AND ts.driver_id = $${params.length + 1}
       )`;
       params.push(driverId);
     }
-    
-    sql += `)`;
+    statusConditions.push(`(${requestedCond})`);
 
+    // Part 2: Rides accepted by THIS driver (only if driverId provided)
     if (driverId) {
-      // 📍 Include rides already accepted by THIS driver
-      sql += ` OR (t.trip_status = 'ACCEPTED' AND t.driver_id = $${params.length + 1})`;
+      statusConditions.push(`(t.trip_status = 'ACCEPTED' AND t.driver_id = $${params.length + 1})`);
       params.push(driverId);
     }
-    
-    sql += `)`; // Close the main group
 
+    // Combine status conditions with OR
+    whereConditions.push(`(${statusConditions.join(' OR ')})`);
+
+    // Part 3: Booking type filter
     if (bookingType) {
-      sql += ` AND t.booking_type = $${params.length + 1}`;
+      whereConditions.push(`t.booking_type = $${params.length + 1}`);
       params.push(bookingType);
     }
 
-    // For scheduled rides, show all future recordings as requested by user
-    // (Removed 24-hour restriction)
+    if (whereConditions.length > 0) {
+      sql += ` WHERE ` + whereConditions.join(' AND ');
+    }
 
     sql += ` ORDER BY t.scheduled_start_time ASC, t.created_at DESC;`;
 
@@ -269,7 +274,7 @@ export const TripRepository = {
 
        AND t.trip_status NOT IN ('COMPLETED', 'CANCELLED','MID_CANCELLED')
        AND (
-         (t.booking_type = 'LIVE' AND t.trip_status = 'LIVE')
+         (t.booking_type = 'LIVE' AND t.trip_status NOT IN ('COMPLETED', 'CANCELLED','MID_CANCELLED'))
          OR
          (t.booking_type = 'SCHEDULED')
        )
@@ -481,11 +486,21 @@ export const TripRepository = {
   
   async findActiveByDriverId(driverId: string): Promise<Trip | null> {
     const result = await query(
-      `SELECT t.*, u.full_name AS passenger_name 
+      `SELECT t.*, 
+              jsonb_build_object(
+                'id', u.id,
+                'full_name', u.full_name,
+                'first_name', u.first_name,
+                'last_name', u.last_name,
+                'phone_number', u.phone_number,
+                'email', u.email,
+                'profile_url', u.profile_url,
+                'rating', u.rating
+              ) AS user_details
       FROM trips t
       LEFT JOIN users u ON t.user_id = u.id
       WHERE t.driver_id = $1 
-      AND t.trip_status IN ('ACCEPTED', 'ARRIVED', 'LIVE')
+      AND t.trip_status IN ('ACCEPTED', 'ARRIVING', 'ARRIVED', 'LIVE', 'DESTINATION_REACHED')
       ORDER BY t.created_at DESC
       LIMIT 1;`,
       [driverId]

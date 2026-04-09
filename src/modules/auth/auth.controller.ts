@@ -269,7 +269,7 @@ export const AuthController = {
     try {
       const { id } = req.params;
       const { device_id, role } = req.body;
-      await AuthService.signOutUser(id, device_id, role);
+      await AuthService.signOutUser(id as string, device_id, role);
       successResponse(res, 200, 'User sign out successfully');
     } catch (error: any) {
       logger.warn(`User creation failed: ${error.message}`);
