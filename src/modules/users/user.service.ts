@@ -1,6 +1,7 @@
 import { UserRepository } from './user.repository';
 import { User } from '../users/user.model';
 import { UserStatus } from '../../enums/user.enums';
+import admin from '../../config/firebase';
 
 export const UserService = {
   async getUsers(page: number = 1, limit: number = 10, search?: string) {
@@ -8,7 +9,7 @@ export const UserService = {
   },
 
   async getUserById(id: string) {
-    const user = await UserRepository.findById(id, UserStatus.DELETED);
+    const user = await UserRepository.findById(id, UserStatus.ACTIVE);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }
@@ -33,7 +34,9 @@ export const UserService = {
 
     const setQuery = fields.map((field, index) => `"${field}" = $${index + 1}`).join(', ');
 
-    const values = Object.values(data);
+    const values = Object.values(data).map(value =>
+      (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value
+    );
     const user = await UserRepository.updateUser(id, setQuery, values);
 
     if (!user) {
@@ -83,7 +86,46 @@ export const UserService = {
     return user;
   },
 
+  async suspendUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.SUSPENDED);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
+  async unsuspendUser(id: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    return user;
+  },
+
   async searchUsers(query: string, page: number = 1, limit: number = 10) {
     return await UserRepository.searchUsers(query, page, limit);
   },
+
+  async sendTripNotification(userId: string, title: string, body: string) {
+    // 1. Use the repository function to get the token
+    const token = await UserRepository.getFcmTokenById(userId);
+
+    if (!token) {
+      console.log(`No notification sent: User ${userId} has no registered device.`);
+      return;
+    }
+
+    // 2. Format the Firebase message
+    const message = {
+      notification: { title, body },
+      token: token,
+    };
+
+    try {
+      await admin.messaging().send(message);
+      console.log('✅ Push notification delivered');
+    } catch (error) {
+      console.error('❌ Firebase delivery failed:', error);
+    }
+  }
 };

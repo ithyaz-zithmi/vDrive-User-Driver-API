@@ -1,4 +1,5 @@
 import {
+  BookingType,
   CancelBy,
   CancelReason,
   PaymentStatus,
@@ -7,6 +8,7 @@ import {
   TripStatus,
 } from '../../enums/trip.enums';
 
+//user-driver
 export interface Trip {
   trip_id?: string;
   user_id: string;
@@ -14,6 +16,12 @@ export interface Trip {
   vehicle_id?: string;
   ride_type: RideType;
   service_type: ServiceType;
+  booking_type: BookingType;
+  is_for_self: boolean;
+  passenger_details?: {
+    name: string;
+    phone: string;
+  };
   trip_status: TripStatus;
   original_scheduled_start_time: Date;
   scheduled_start_time?: Date;
@@ -41,6 +49,7 @@ export interface Trip {
   rating?: number;
   re_route_id?: string;
   feedback?: string;
+  otp?: string;
   assigned_at?: Date;
   started_at?: Date;
   ended_at?: Date;
@@ -48,4 +57,101 @@ export interface Trip {
   updated_by?: string;
   created_at?: Date;
   updated_at?: Date;
+  [key: string]: unknown;
+}
+
+//Admin
+export interface TripDetailsType {
+  trip_id: string;
+  user_id: string;
+  user_name: string;
+  user_phone: string;
+  driver_id: string | null;
+  driver_name: string | null;
+  driver_phone: string | null;
+  vehicle_id: string | null;
+  car_number: string | null;
+  car_type: string | null;
+
+  ride_type: "ONE_WAY" | "ROUND_TRIP" | "DAILY" | "OUTSTATION";
+  service_type: "DRIVER_ONLY" | "CAB+DRIVER";
+
+  trip_status:
+  | "LIVE"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "UPCOMING"
+  | "REQUESTED"
+  | "MID-CANCELLED";
+
+  original_scheduled_start_time: string;
+  scheduled_start_time: string;
+
+  actual_pickup_time: string | null;
+  actual_drop_time: string | null;
+
+  pickup_lat: number;
+  pickup_lng: number;
+  pickup_address: string;
+
+  drop_lat: number;
+  drop_lng: number;
+  drop_address: string;
+
+  distance_km: number;
+  trip_duration_minutes: number;
+  waiting_time_minutes: number;
+
+  Estimate_km: number;
+  distance_fare_per_km: number;
+  distance_fare: number;
+
+  base_fare: number;
+  time_fare_per_minute: number;
+  time_fare: number;
+  waiting_charges: number;
+  driver_allowance: number;
+  return_compensation: number;
+  platform_fee: number;
+  total_fare: number;
+  surge_multiplier: number;
+  surge_pricing: number;
+
+  tip: number;
+  toll_charges: number;
+  night_charges: number;
+  discount: number;
+  gst_percentage: number;
+  gst_amount: number;
+
+  subtotal: number;
+  paid_amount: number;
+  payment_status: "PAID" | "PENDING" | "FAILED";
+  payment_method: "UPI" | "CASH" | "CARD" | "WALLET";
+
+  cancel_reason: string | null;
+  cancel_by: "USER" | "DRIVER" | "ADMIN" | null;
+
+  notes: string | null;
+
+  created_at: string;
+  updated_at: string;
+  assigned_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+
+  trip_changes?: {
+    id: string;
+    trip_id: string;
+
+    change_type: "SCHEDULE_TIME" | "FARE" | "DRIVER" | "STATUS";
+
+    old_value: Record<string, any>;
+    new_value: Record<string, any>;
+
+    changed_by: "USER" | "ADMIN" | "SYSTEM";
+    changed_at: string;
+
+    notes: string | null;
+  }[];
 }

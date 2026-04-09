@@ -1,12 +1,18 @@
 // src/app.ts
 import express from 'express';
+import './config/firebase'; // 🔥 Initialize Firebase Admin
+
 import { errorHandler } from './shared/errorHandler';
 import { logger } from './shared/logger';
 import { middlewares } from './shared/middlewares';
 import cookieParser from 'cookie-parser';
 import routes from './routes';
+import path from 'path';
 
 const app = express();
+
+// Serve uploads directory statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // app.use(xssClean());
 

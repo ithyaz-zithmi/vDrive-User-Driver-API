@@ -22,6 +22,7 @@ interface Config {
     refreshExpiresIn: SignOptions['expiresIn'];
   };
   prodURL: string;
+  adminApiUrl: string,
   awsServiceUrl: string;
   email: {
     service: string;
@@ -32,8 +33,12 @@ interface Config {
   auth: {
     otpExpiryTime: number;
     maxAttempts: number;
+    otpRequestLimit: number;
+    otpRequestWindow: number;
+    otpBlockDuration: number;
   };
   internalServiceApiKey: string;
+  adminBackendUrl: string;
 }
 
 const config: Config = {
@@ -55,6 +60,7 @@ const config: Config = {
     refreshExpiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'],
   },
   prodURL: process.env.PROD_URL || 'http://localhost:3000',
+  adminApiUrl: process.env.ADMIN_API_URL || 'http://localhost:3000',
   awsServiceUrl: process.env.AWS_SERVICE_URL || 'http://localhost:1235',
   email: {
     service: process.env.EMAIL_SERVICE || 'gmail',
@@ -63,10 +69,14 @@ const config: Config = {
     from: process.env.SMTP_USER || '',
   },
   auth: {
-    otpExpiryTime: Number(process.env.OTP_EXPIRY_TIME) || 5,
-    maxAttempts: Number(process.env.MAX_ATTEMPTS) || 3,
+    otpExpiryTime: Number(process.env.OTP_EXPIRY_TIME) || 5, // minutes
+    maxAttempts: Number(process.env.MAX_ATTEMPTS) || 3, // failure attempts
+    otpRequestLimit: Number(process.env.OTP_REQUEST_LIMIT) || 3, // max requests in window
+    otpRequestWindow: Number(process.env.OTP_REQUEST_WINDOW) || 15, // window in minutes
+    otpBlockDuration: Number(process.env.OTP_BLOCK_DURATION) || 60, // block duration in minutes
   },
   internalServiceApiKey: process.env.INTERNAL_SERVICE_API_KEY || '',
+  adminBackendUrl: process.env.ADMIN_BACKEND_URL || 'http://localhost:3000',
 };
 
 export default config;

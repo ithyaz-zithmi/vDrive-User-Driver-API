@@ -33,28 +33,36 @@ export const UserRepository = {
   },
 
   async findById(id: string, status: string): Promise<User | null> {
-    const result = await query('SELECT * FROM users WHERE id = $1 AND status <> $2', [id, status]);
+    const result = await query('SELECT * FROM users WHERE id = $1 AND status = $2', [id, status]);
     return result.rows[0] || null;
   },
 
   async createUser(data: User): Promise<User | null> {
-    const result = await query(
-      `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, gender, date_of_birth, status, email, device_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) RETURNING *;`,
-      [
-        data.first_name,
-        data.last_name,
-        data.full_name,
-        data.phone_number,
-        data.alternate_contact,
-        data.gender,
-        data.date_of_birth,
-        data.status,
-        data.email,
-        data.device_id,
-      ]
-    );
 
-    return result.rows[0] || null;
+    try {
+
+      const result = await query(
+        `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, role, gender, date_of_birth, status, email, device_id, onboarding_status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()) RETURNING *;`,
+        [
+          data.first_name,
+          data.last_name,
+          data.full_name,
+          data.phone_number,
+          data.alternate_contact,
+          data.role,
+          data.gender,
+          data.date_of_birth,
+          data.status,
+          data.email,
+          data.device_id,
+          data.onboarding_status,
+        ]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      throw error;
+    }
+
   },
 
   async updateUser(id: string, setQuery: string, values: any[]): Promise<User | null> {
@@ -103,5 +111,16 @@ export const UserRepository = {
     const result = await query(selectQuery, params);
 
     return { users: result.rows, total };
+  },
+
+  // Save or Update the FCM Token for a user
+  async updateFcmToken(id: string, fcmToken: string): Promise<void> {
+    await query('UPDATE users SET fcm_token = $1 WHERE id = $2', [fcmToken, id]);
+  },
+
+  // Retrieve the FCM Token to send a notification
+  async getFcmTokenById(id: string): Promise<string | null> {
+    const result = await query('SELECT fcm_token FROM users WHERE id = $1', [id]);
+    return result.rows[0]?.fcm_token || null;
   },
 };

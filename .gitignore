@@ -137,3 +137,26 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Firebase Secret Key
+firebase-service-account.json
+*firebase-adminsdk*.json
+# Firebase
+src/config/serviceAccountKey.json
+
+# Temporary scripts
+check-*.ts
+verify-*.ts
+check_*.ts
+verify_*.ts
+check_*.js
+verify_*.js
+final_check.js
+test-sos-admin.js
+trigger-test-ride.ts
+approve-driver.ts
+fix-db*.ts
+fix_*.js
+inspect_otp.js
+setup_sos_tables.ts
+*.log

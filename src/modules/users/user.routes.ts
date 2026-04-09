@@ -10,10 +10,10 @@ router.get('/', UserController.getUsers);
 
 router.get('/:id', validateParams(UserValidation.idValidation), UserController.getUserById);
 
-router.post('/', validateBody(UserValidation.createUserValidation), UserController.createUser);
+router.post('/add-user', validateBody(UserValidation.createUserValidation), UserController.createUser);
 
 router.patch(
-  '/:id',
+  '/update/:id',
   validateParams(UserValidation.idValidation),
   validateBody(UserValidation.updateUserValidation),
   UserController.updateUser
@@ -37,9 +37,24 @@ router.patch(
 
 router.patch('/enable/:id', validateParams(UserValidation.idValidation), UserController.enableUser);
 
+router.patch(
+  '/suspend/:id',
+  validateParams(UserValidation.idValidation),
+  UserController.suspendUser
+);
+
+router.patch(
+  '/unsuspend/:id',
+  validateParams(UserValidation.idValidation),
+  UserController.unsuspendUser
+);
+
 router.get('/search', validateQuery(UserValidation.searchValidation), UserController.searchUsers);
 
 // Driver documents routes
 router.use('/documents', driverDocumentsRoutes);
+
+//fcm-token-update
+router.post('/update-fcm-token', UserController.updateToken)
 
 export default router;

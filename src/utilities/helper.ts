@@ -40,3 +40,15 @@ export const enumString = (values: any[]) =>
   Joi.string()
     .valid(...values)
     .required();
+
+
+// src/utilities/helper.ts
+
+export function parseQueryInt(
+  value: string | undefined,
+  defaultValue: number,
+): number {
+  if (!value) return defaultValue;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+}

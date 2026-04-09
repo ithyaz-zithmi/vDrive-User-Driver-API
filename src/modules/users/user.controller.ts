@@ -2,9 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { successResponse } from '../../shared/errorHandler';
 import { User } from './user.model';
-import { UserStatus } from '../../enums/user.enums';
+import { OnboardingStatus, UserStatus } from '../../enums/user.enums';
 import { logger } from '../../shared/logger';
 import { cleanUndefined, formFullName } from '../../utilities/helper';
+import { UserRepository } from './user.repository';
+import { notifyAdmin } from '../../sockets/admin-socket.service';
 
 export const UserController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
@@ -33,7 +35,7 @@ export const UserController = {
 
   async getUserById(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.getUserById(req.params.id);
+      const user = await UserService.getUserById(req.params.id as string);
       return successResponse(res, 200, 'User fetched successfully', user);
     } catch (err: any) {
       logger.error(`getUserById error: ${err.message}`);
@@ -59,6 +61,17 @@ export const UserController = {
 
       const user = await UserService.createUser(body);
 
+      notifyAdmin('NEW_USER_CREATED', {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        phone_number: user.phone_number,
+        status: user.status || 'active',
+        updated_at: user.updated_at,
+        created_at: user.created_at,
+        gender: user.gender,
+        role: user.role || 'user',
+      });
       return successResponse(res, 200, 'User created successfully', user);
     } catch (err: any) {
       logger.error(`createUser error: ${err.message}`);
@@ -70,7 +83,7 @@ export const UserController = {
     try {
       const { id } = req.params;
 
-      const existingUser = await UserService.getUserById(id);
+      const existingUser = await UserService.getUserById(id as string);
       if (!existingUser) {
         throw { statusCode: 404, message: 'User not found' };
       }
@@ -84,17 +97,22 @@ export const UserController = {
         first_name,
         last_name,
         phone_number: rest.phone_number,
+        device_id: rest.device_id,
         alternate_contact: rest.alternate_number,
         date_of_birth: rest.date_of_birth,
         status: rest.status,
         gender: rest.gender,
         email: rest.email,
-        updated_by: (req as any).adminId,
+        favourite_places: rest.favourite_places,
+        emergency_contacts: rest.emergency_contacts,
+        settings_preferences: rest.settings_preferences,
+        profile_url: rest.profile_url || '',
+        onboarding_status: rest.onboarding_status,
       };
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);
       const updateData = cleanUndefined(updateUserData);
-      const updatedUser = await UserService.updateUser(id, updateData);
+      const updatedUser = await UserService.updateUser(id as string, updateData);
 
       return successResponse(res, 200, 'User updated successfully', updatedUser);
     } catch (err: any) {
@@ -105,7 +123,7 @@ export const UserController = {
 
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.deleteUser(req.params.id);
+      const user = await UserService.deleteUser(req.params.id as string);
       return successResponse(res, 200, 'User deleted successfully', user);
     } catch (err: any) {
       logger.error(`deleteUser error: ${err.message}`);
@@ -115,7 +133,7 @@ export const UserController = {
 
   async blockUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.blockUser(req.params.id);
+      const user = await UserService.blockUser(req.params.id as string);
       return successResponse(res, 200, 'User blocked successfully', user);
     } catch (err: any) {
       logger.error(`blockUser error: ${err.message}`);
@@ -125,7 +143,7 @@ export const UserController = {
 
   async unblockUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.unblockUser(req.params.id);
+      const user = await UserService.unblockUser(req.params.id as string);
       return successResponse(res, 200, 'User unblocked successfully', user);
     } catch (err: any) {
       logger.error(`unblockUser error: ${err.message}`);
@@ -135,7 +153,7 @@ export const UserController = {
 
   async disableUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.disableUser(req.params.id);
+      const user = await UserService.disableUser(req.params.id as string);
       return successResponse(res, 200, 'User disabled successfully', user);
     } catch (err: any) {
       logger.error(`disableUser error: ${err.message}`);
@@ -149,6 +167,26 @@ export const UserController = {
       return successResponse(res, 200, 'User enabled successfully', user);
     } catch (err: any) {
       logger.error(`enableUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async suspendUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.suspendUser(req.params.id);
+      return successResponse(res, 200, 'User suspended successfully', user);
+    } catch (err: any) {
+      logger.error(`suspendUser error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async unsuspendUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await UserService.unsuspendUser(req.params.id);
+      return successResponse(res, 200, 'User unsuspended successfully', user);
+    } catch (err: any) {
+      logger.error(`unsuspendUser error: ${err.message}`);
       next(err);
     }
   },
@@ -176,4 +214,15 @@ export const UserController = {
       next(err);
     }
   },
+
+  async updateToken(req: Request, res: Response) {
+    const { fcmToken } = req.body;
+    const userId = (req as any).user?.id;
+    try {
+      await UserRepository.updateFcmToken(userId, fcmToken);
+      res.status(200).json({ status: 'success', message: 'Token updated' });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: 'Database update failed' });
+    }
+  }
 };
