@@ -4,7 +4,6 @@ import {
   ServiceType,
   BookingType,
   TripStatus,
-  BookingType,
   PaymentStatus,
   CancelReason,
   CancelBy,
@@ -12,14 +11,6 @@ import {
   ChangeBy,
 } from '../../enums/trip.enums';
 import { enumString } from '../../utilities/helper';
-
-export const bookingTypeRule = enumString(Object.values(BookingType))
-  .required()
-  .messages({
-    'any.only': `booking_type must be one of [${Object.values(BookingType).join(', ')}]`,
-    'any.required': 'booking_type is required',
-    'string.base': 'booking_type must be a string',
-  });
 
 export const tripIdRule = Joi.string().guid({ version: 'uuidv4' }).optional().messages({
   'string.guid': 'trip_id must be a valid UUID v4',
