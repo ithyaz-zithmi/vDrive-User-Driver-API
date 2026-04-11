@@ -6,6 +6,9 @@ dotenv.config();
 interface Config {
   port: number;
   nodeEnv: string;
+  redis: {
+    url: string;
+  };
   db: {
     host: string;
     port: number;
@@ -44,6 +47,9 @@ interface Config {
 const config: Config = {
   port: Number(process.env.PORT) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
+  redis: {
+    url: process.env.REDIS_URL || '',
+  },
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT) || 5432,
