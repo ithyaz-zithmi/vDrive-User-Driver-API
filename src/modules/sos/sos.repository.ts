@@ -24,12 +24,27 @@ export class SosRepository {
     );
   }
 
+  static async findById(id: string): Promise<SosEvent | null> {
+    const result = await query(
+      'SELECT * FROM sos_events WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
   static async findActiveSosByUser(user_id: string, user_type: 'driver' | 'user'): Promise<SosEvent | null> {
     const result = await query(
       "SELECT * FROM sos_events WHERE user_id = $1 AND user_type = $2 AND status = 'ACTIVE' LIMIT 1",
       [user_id, user_type]
     );
     return result.rows[0] || null;
+  }
+
+  static async findAllActiveSos(): Promise<SosEvent[]> {
+    const result = await query(
+      "SELECT * FROM sos_events WHERE status = 'ACTIVE' ORDER BY created_at DESC"
+    );
+    return result.rows;
   }
 
   static async getTrustedContacts(user_id: string, user_type: 'driver' | 'user'): Promise<TrustedContact[]> {

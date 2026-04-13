@@ -30,6 +30,11 @@ router.get('/health-check', (req, res) => {
 router.use('/auth', authRoutes);
 router.use(isAuthenticatedOrService);
 router.use('/invoices', emailRoutes);
+router.use('/subscriptions', subscriptionRoutes);
+router.use('/admin', adminRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/sos', sosRoutes);
+
 router.use(isAuthenticated);
 router.use('/trips', tripRoutes);
 router.use('/users', userRoutes);
@@ -42,21 +47,6 @@ router.use('/pricing', pricingRoutes);
 router.use('/drivers/documents', driverDocumentsRoutes);
 router.use('/drivers/trip-verification', tripVerificationRoutes);
 router.use('/s3', s3Routes);
-
-// 🔒 PROTECTED ROUTES (TOKEN REQUIRED BELOW)
-router.use((req, res, next) => {
-  // Bypass auth for simulation routes
-  if (req.originalUrl.includes('/test-simulate-')) {
-    return next();
-  }
-  return isAuthenticatedOrService(req, res, next);
-});
-
-
-router.use('/subscriptions', subscriptionRoutes);
-router.use('/admin', adminRoutes);
-router.use('/notifications', notificationRoutes);
-router.use('/sos', sosRoutes);
 
 export default router;
 

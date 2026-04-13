@@ -117,4 +117,13 @@ export const DriverNotifications = {
             data: { amount, balance },
             androidChannelId: 'ride_requests',
         }),
+
+    sosResolved: (fcmToken: string, sosId: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.SOS_RESOLVED,
+            title: 'SOS Alert Resolved',
+            body: 'Your SOS emergency alert has been marked as resolved.',
+            data: { sosId },
+            androidChannelId: 'ride_requests',
+        }),
 };

@@ -345,11 +345,13 @@ export const AuthService = {
         userData = await createNewUser(role, phone_number, device_id) as any;
         if(role === 'driver'){
         try {
-          const webhookUrl = process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
+          const webhookUrl = `${config.adminBackendUrl}/api/webhooks/driver-events`;
           axios.post(webhookUrl, {
             eventType: 'NEW_DRIVER',
             message: `New Driver ${phone_number} Registered`,
             data: userData
+          }, {
+            headers: { 'x-api-key': config.internalServiceApiKey }
           }).catch(err => logger.error(`Webhook trigger failed: ${err.message}`));
         } catch (e) {
           // Ignore
