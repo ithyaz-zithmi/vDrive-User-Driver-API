@@ -342,23 +342,45 @@ export const AuthService = {
 
       // Create new user/driver if not exists
       if (!isExistingUser) {
-        userData = await createNewUser(role, phone_number, device_id) as any;
-        if(role === 'driver'){
-        try {
-          const webhookUrl = process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
-          axios.post(webhookUrl, {
-            eventType: 'NEW_DRIVER',
-            message: `New Driver ${phone_number} Registered`,
-            data: userData
-          }).catch(err => logger.error(`Webhook trigger failed: ${err.message}`));
-        } catch (e) {
-          // Ignore
-        }
+        userData = (await createNewUser(role, phone_number, device_id)) as any;
+        if (role === 'driver') {
+          try {
+            const webhookUrl =
+              process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
+            axios
+              .post(webhookUrl, {
+                eventType: 'NEW_DRIVER',
+                message: `New Driver ${phone_number} Registered`,
+                data: userData,
+              })
+              .catch((err) => logger.error(`Webhook trigger failed: ${err.message}`));
+          } catch (e) {
+            // Ignore
+          }
         }
         if (!userData?.id) {
           throw { statusCode: 500, message: 'Failed to create user' };
         }
         isExistingUser = false;
+      } else if (userData) {
+        // Handle transitions for existing users
+        let updatedStatus: OnboardingStatus | undefined;
+        if (userData.onboarding_status === OnboardingStatus.PENDING) {
+          updatedStatus = OnboardingStatus.PHONE_VERIFIED;
+        } else if (userData.onboarding_status === OnboardingStatus.PROFILE_COMPLETED) {
+          updatedStatus = OnboardingStatus.COMPLETED;
+        }
+
+        if (updatedStatus) {
+          const table = role === 'driver' ? 'drivers' : 'users';
+          const userId = userData.id || (userData as any).driverId;
+          await query(`UPDATE ${table} SET onboarding_status = $1 WHERE id = $2`, [
+            updatedStatus,
+            userId,
+          ]);
+          userData.onboarding_status = updatedStatus;
+          logger.info(`Onboarding status updated to ${updatedStatus} for ${role} ${userId}`);
+        }
       }
 
       // Generate tokens for ALL users (new and existing)
@@ -373,8 +395,7 @@ export const AuthService = {
         if (!userId) {
           throw { statusCode: 500, message: 'Driver ID missing' };
         }
-      }
-      else {
+      } else {
         throw { statusCode: 500, message: 'Invalid role' };
       }
 
@@ -400,7 +421,7 @@ export const AuthService = {
         isNewUser: !isExistingUser,
         accessToken,
         refreshToken,
-        onboarding_status: (userData as any)?.onboarding_status || 'PHONE_VERIFIED', // Ensure status is returned
+        onboarding_status: userData?.onboarding_status || OnboardingStatus.PHONE_VERIFIED, // Ensure status is returned
       };
     } catch (error: any) {
       console.error('OTP Verification Error:', error);
@@ -496,6 +517,20 @@ export const AuthService = {
     }
     return null;
   },
+
+  async getDeletedUser(userId: string, role: string): Promise<User | null> {
+        if (role === 'driver') {
+            const driver = await DriverRepository.findById(userId);
+            if (driver) {
+                return { ...driver, id: driver.driverId } as any;
+            }
+        } else {
+            const user = await UserRepository.findById(userId, UserStatus.DELETED);
+            if (user) return user;
+        }
+
+        return null;
+    },
 
   async verifyUser(phone_number: string, role: UserRole): Promise<boolean> {
     const user = await AuthRepository.getUser(phone_number, role);

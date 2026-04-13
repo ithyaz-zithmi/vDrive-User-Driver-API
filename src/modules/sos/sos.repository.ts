@@ -2,7 +2,7 @@ import { query } from '../../shared/database';
 import { SosEvent, SosLocation, TrustedContact } from './sos.model';
 
 export class SosRepository {
-  static async createSosEvent(user_id: string, user_type: 'driver' | 'user', trip_id?: string): Promise<SosEvent> {
+  static async createSosEvent(user_id: string, user_type: 'driver' | 'customer', trip_id?: string): Promise<SosEvent> {
     const result = await query(
       'INSERT INTO sos_events (user_id, user_type, trip_id, status) VALUES ($1, $2, $3, $4) RETURNING *',
       [user_id, user_type, trip_id, 'ACTIVE']
@@ -24,7 +24,7 @@ export class SosRepository {
     );
   }
 
-  static async findActiveSosByUser(user_id: string, user_type: 'driver' | 'user'): Promise<SosEvent | null> {
+  static async findActiveSosByUser(user_id: string, user_type: 'driver' | 'customer'): Promise<SosEvent | null> {
     const result = await query(
       "SELECT * FROM sos_events WHERE user_id = $1 AND user_type = $2 AND status = 'ACTIVE' LIMIT 1",
       [user_id, user_type]
@@ -32,7 +32,7 @@ export class SosRepository {
     return result.rows[0] || null;
   }
 
-  static async getTrustedContacts(user_id: string, user_type: 'driver' | 'user'): Promise<TrustedContact[]> {
+  static async getTrustedContacts(user_id: string, user_type: 'driver' | 'customer'): Promise<TrustedContact[]> {
     const result = await query(
       'SELECT * FROM trusted_contacts WHERE user_id = $1 AND user_type = $2',
       [user_id, user_type]
@@ -40,7 +40,7 @@ export class SosRepository {
     return result.rows;
   }
 
-  static async addTrustedContact(user_id: string, user_type: 'driver' | 'user', name: string, phone: string, relationship?: string): Promise<TrustedContact> {
+  static async addTrustedContact(user_id: string, user_type: 'driver' | 'customer', name: string, phone: string, relationship?: string): Promise<TrustedContact> {
     const result = await query(
       'INSERT INTO trusted_contacts (user_id, user_type, name, phone, relationship) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [user_id, user_type, name, phone, relationship || null]
@@ -48,7 +48,7 @@ export class SosRepository {
     return result.rows[0];
   }
 
-  static async removeTrustedContact(id: number, user_id: string): Promise<void> {
+  static async removeTrustedContact(id: number, user_id: string ): Promise<void> {
     await query(
       'DELETE FROM trusted_contacts WHERE id = $1 AND user_id = $2',
       [id, user_id]

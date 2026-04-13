@@ -49,7 +49,7 @@ export class SosController {
     try {
       const user_id = (req as any).user.id;
       const user_type = (req.query.user_type as string) || 'driver';
-      const contacts = await SosRepository.getTrustedContacts(user_id, user_type as 'driver' | 'user');
+      const contacts = await SosRepository.getTrustedContacts(user_id, user_type as 'driver' | 'customer');
       return successResponse(res, 200, 'Trusted contacts retrieved', contacts);
     } catch (err) {
       next(err);

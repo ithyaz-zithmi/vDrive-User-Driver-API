@@ -107,7 +107,7 @@ export const UserController = {
         emergency_contacts: rest.emergency_contacts,
         settings_preferences: rest.settings_preferences,
         profile_url: rest.profile_url || '',
-        onboarding_status: rest.onboarding_status,
+        onboarding_status: rest.onboarding_status || (existingUser.onboarding_status === OnboardingStatus.PHONE_VERIFIED ? OnboardingStatus.COMPLETED : existingUser.onboarding_status),
       };
 
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);

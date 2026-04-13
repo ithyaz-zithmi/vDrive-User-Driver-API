@@ -5,7 +5,7 @@ import { logger } from '../../shared/logger';
 import config from '../../config';
 import jwt from 'jsonwebtoken';
 import { User } from '../users/user.model';
-import { UserStatus, UserRole } from '../../enums/user.enums';
+import { UserStatus, UserRole, OnboardingStatus } from '../../enums/user.enums';
 import { UserService } from '../users/user.service';
 import { formFullName } from '../../utilities/helper';
 import { notifyAdmin } from '../../sockets/admin-socket.service';
@@ -135,6 +135,32 @@ export const AuthController = {
     }
   },
 
+  async getDeletedUser(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const role = req.body.role;
+
+      if (!userId) {
+        logger.warn('getDeletedUser called without user ID');
+        throw { statusCode: 401, message: 'User not authenticated' };
+      }
+
+      logger.info(`Fetching deleted user profile for ID: ${userId}`);
+      const userProfile = await AuthService.getDeletedUser(userId, role);
+
+      if (!userProfile) {
+        logger.warn(`Deleted user not found for ID: ${userId}`);
+        throw { statusCode: 404, message: 'User not found' };
+      }
+
+      logger.info(`Deleted user profile fetched successfully for ID: ${userId}`);
+      successResponse(res, 200, 'Deleted user profile retrieved successfully', userProfile);
+    } catch (error: any) {
+      logger.error(`getDeletedUser error: ${error.message}`);
+      next(error);
+    }
+  },
+
   async signUp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const {
@@ -168,6 +194,7 @@ export const AuthController = {
         email: email ?? null,
         status: status ?? UserStatus.ACTIVE,
         device_id: device_id ?? '',
+        onboarding_status: OnboardingStatus.PROFILE_COMPLETED,
       };
 
       const newUser = await UserService.createUser(body);

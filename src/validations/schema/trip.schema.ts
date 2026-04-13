@@ -9,6 +9,8 @@ import {
   CancelBy,
   ChangeType,
   ChangeBy,
+  VehicleType,
+  TransmissionType
 } from '../../enums/trip.enums';
 import { enumString } from '../../utilities/helper';
 
@@ -266,3 +268,21 @@ export const passenger_details = Joi.object({
 export const tripCodeRule = Joi.string().optional().messages({
   'string.base': 'trip_code must be a string',
 });
+
+export const vehicleModelRule = Joi.string().optional().messages({
+    'string.base': 'vehicle_model must be a string',
+});
+
+export const vehicleTypeRule = enumString(Object.values(VehicleType))
+    .optional()
+    .messages({
+        'any.only': `vehicle_type must be one of [${Object.values(VehicleType).join(', ')}]`,
+        'string.base': 'vehicle_type must be a string',
+    });
+
+export const transmissionTypeRule = enumString(Object.values(TransmissionType))
+    .optional()
+    .messages({
+        'any.only': `transmission_type must be one of [${Object.values(TransmissionType).join(', ')}]`,
+        'string.base': 'transmission_type must be a string',
+    });

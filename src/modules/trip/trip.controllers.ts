@@ -121,6 +121,9 @@ export const TripController = {
         feedback: req.body.feedback,
         re_route_id: req.body.re_route_id,
         updated_by: (req as any).adminId,
+        vehicle_model: req.body.vehicle_model,
+        vehicle_type: req.body.vehicle_type,
+        transmission_type: req.body.transmission_type,
       };
 
       const updateData = cleanUndefined(updateTripData);

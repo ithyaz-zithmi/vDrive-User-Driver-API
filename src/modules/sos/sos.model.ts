@@ -1,7 +1,7 @@
 export interface TrustedContact {
   id?: number;
   user_id: string;
-  user_type: 'driver' | 'user';
+  user_type: 'driver' | 'customer';
   name: string;
   phone: string;
   relationship?: string;
@@ -11,7 +11,7 @@ export interface TrustedContact {
 export interface SosEvent {
   id: string;
   user_id: string;
-  user_type: 'driver' | 'user';
+  user_type: 'driver' | 'customer';
   trip_id?: string;
   status: 'ACTIVE' | 'RESOLVED';
   created_at: Date;

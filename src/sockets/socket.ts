@@ -45,6 +45,8 @@ export const getIO = (): Server => {
     return io;
 };
 
+
+
 // -----------------------------------------------------------------------------
 // Handlers
 // -----------------------------------------------------------------------------
@@ -266,5 +268,11 @@ export const emitToUser = (userId: string, event: TripSocketEvent, data: TripEve
         ...data,
         timestamp: new Date().toISOString(),
     });
+};
+
+export const emitToAll = (event: string, data: any) => {
+  if (io) {
+    io.emit(event, data);
+  }
 };
 

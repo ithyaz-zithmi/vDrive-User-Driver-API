@@ -93,3 +93,23 @@ export enum ChangeBy {
   ADMIN = 'ADMIN',
   SYSTEM = 'SYSTEM',
 }
+
+export enum TransmissionType {
+    MANUAL = 'MANUAL',
+    AUTOMATIC = 'AUTOMATIC',
+    SEMI_AUTOMATIC = 'SEMI_AUTOMATIC'
+}
+
+export enum VehicleType {
+    HATCHBACK = 'Hatchback',
+    SEDAN = 'Sedan',
+    SUV = 'SUV',
+    AUTO = 'auto',
+    BIKE = 'bike',
+    TRUCK = 'truck',
+    CAR = 'car',
+    VAN = 'van',
+    MUV = 'MUV',
+    LUXURY = 'LUXURY',
+    TEMPO_TRAVELLER = 'TEMPO_TRAVELLER',
+}

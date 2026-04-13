@@ -30,6 +30,9 @@ export const TripValidation = {
     driver_allowance: tripSchema.driverAllowanceRule.optional(),
     total_fare: tripSchema.totalFareRule,
     payment_status: tripSchema.paymentStatusRule,
+    vehicle_model: tripSchema.vehicleModelRule.optional(),
+    vehicle_type: tripSchema.vehicleTypeRule.optional(),
+    transmission_type: tripSchema.transmissionTypeRule.optional(),
   }),
 
   updateTripValidation: Joi.object()
@@ -57,6 +60,9 @@ export const TripValidation = {
       feedback: tripSchema.feedbackRule.optional(),
       re_route_id: tripSchema.reRouteIdRule.optional(),
       trip_code: tripSchema.tripCodeRule.optional(),
+      vehicle_model: tripSchema.vehicleModelRule.optional(),
+      vehicle_type: tripSchema.vehicleTypeRule.optional(),
+      transmission_type: tripSchema.transmissionTypeRule.optional(),
     })
     .min(1)
     .messages({

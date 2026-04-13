@@ -34,17 +34,17 @@ export const TripService = {
   },
 
   async getTripByUserId(id: string, role: string) {
-    const user = await TripRepository.findByUserId(id, role);
-    if (!user) {
-      throw { statusCode: 404, message: 'User not found' };
+    const trip = await TripRepository.findByUserId(id, role);
+    if (!trip) {
+      throw { statusCode: 404, message: 'Trip not found' };
     }
-    return user;
+    return trip;
   },
 
   async getTripById(id: string) {
     const trip = await TripRepository.findById(id);
     if (!trip) {
-      throw { statusCode: 404, message: 'User not found' };
+      throw { statusCode: 404, message: 'Trip not found' };
     }
     return trip;
   },
@@ -157,7 +157,6 @@ export const TripService = {
     }
 
     const driver = await DriverRepository.findById(driverId);
-    logger.info(`driver`, driver);
     if (!driver) {
       throw { statusCode: 404, message: 'Driver not found' };
     }
