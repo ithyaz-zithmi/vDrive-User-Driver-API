@@ -231,6 +231,12 @@ export const emitToRoom = (room: string, event: string, data: unknown): void => 
     }
 };
 
+export const emitToAll = (event: string, data: unknown): void => {
+    if (io) {
+        io.emit(event, data);
+    }
+};
+
 export const broadcastTripUpdate = (tripId: string, data: unknown): void => {
     emitToRoom(`trip_${tripId}`, 'trip_updated', data);
 };

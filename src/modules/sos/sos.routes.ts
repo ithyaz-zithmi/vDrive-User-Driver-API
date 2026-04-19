@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { SosController } from './sos.controller';
-import isAuthenticated from '../../shared/authentication';
+import { isAuthenticatedOrService } from '../../shared/serviceAuthentication';
 
 const router = Router();
 
-// Driver authentication required for all SOS routes
-router.use(isAuthenticated);
+// Allow either driver authentication or Admin Backend service authentication
+router.use(isAuthenticatedOrService);
 
 // SOS triggering and tracking
+router.get('/active', SosController.getActiveSos);
 router.post('/trigger', SosController.triggerSos);
 router.post('/location', SosController.updateLocation);
 router.post('/resolve', SosController.resolveSos);

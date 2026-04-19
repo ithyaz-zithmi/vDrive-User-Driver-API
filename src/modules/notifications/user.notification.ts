@@ -123,4 +123,13 @@ export const UserNotifications = {
             data: { bookingId },
             androidChannelId: 'default',
         }),
+
+    sosResolved: (fcmToken: string, sosId: string) =>
+        sendToDevice(fcmToken, {
+            type: UserNotificationType.SOS_RESOLVED,
+            title: 'SOS Alert Resolved',
+            body: 'Your SOS emergency alert has been marked as resolved by the admin.',
+            data: { sosId },
+            androidChannelId: 'default',
+        }),
 };

@@ -8,6 +8,7 @@ import { Trip } from '../trip/trip.model';
 import { logger } from '../../shared/logger';
 import { DriverDocumentsRepository } from './driver-documents.repository';
 import axios from 'axios';
+import config from '../../config';
 
 export const DriverService = {
   async createDriver(driverData: CreateDriverInput): Promise<Driver> {
@@ -21,11 +22,13 @@ export const DriverService = {
 
     // Trigger webhook asynchronously for Admin App real-time notifications
     try {
-      const webhookUrl = process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
+      const webhookUrl = `${config.adminBackendUrl}/api/webhooks/driver-events`;
       axios.post(webhookUrl, {
         eventType: 'NEW_DRIVER',
         message: `A new driver named ${driver.full_name} has registered.`,
         data: driver
+      }, {
+        headers: { 'x-api-key': config.internalServiceApiKey }
       }).catch(err => logger.error(`Webhook trigger failed: ${err.message}`));
     } catch (e) {
       // Ignore 
@@ -70,12 +73,14 @@ export const DriverService = {
         
         // Trigger webhook for Admin App real-time notifications
         try {
-          const webhookUrl = process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
+          const webhookUrl = `${config.adminBackendUrl}/api/webhooks/driver-events`;
           const driverName = currentDriver.full_name || driverData.full_name || 'A driver';
           axios.post(webhookUrl, {
             eventType: 'DRIVER_PROFILE_COMPLETED',
             message: `Driver ${driverName} completed profile setup.`,
             data: driverData
+          }, {
+            headers: { 'x-api-key': config.internalServiceApiKey }
           }).catch(err => logger.error(`Webhook trigger failed: ${err.message}`));
         } catch (e) {
           // Ignore 

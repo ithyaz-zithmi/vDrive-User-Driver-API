@@ -24,11 +24,11 @@ export const SubscriptionRepository = {
 
   async createPayment(paymentData: Partial<PaymentRecord>, client?: any): Promise<PaymentRecord> {
     const q = client ? client.query.bind(client) : query;
-    const { driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status } = paymentData;
+    const { driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount } = paymentData;
     const result = await q(
-      `INSERT INTO payments (driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status]
+      `INSERT INTO payments (driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount]
     );
     return result.rows[0];
   },
@@ -116,5 +116,13 @@ export const SubscriptionRepository = {
        ORDER BY ds.expiry_date ASC`
     );
     return result.rows || [];
+  },
+
+  async hasSuccessfulPayments(driverId: string): Promise<boolean> {
+    const result = await query(
+      "SELECT id FROM payments WHERE driver_id = $1 AND status = 'completed' LIMIT 1",
+      [driverId]
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 };
