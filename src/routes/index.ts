@@ -15,6 +15,7 @@ import subscriptionRoutes from '../modules/subscriptions/subscription.routes';
 import driverDocumentsRoutes from '../modules/drivers/driver-documents.routes';
 import tripVerificationRoutes from '../modules/drivers/trip-verification.routes';
 import adminRoutes from '../modules/admin/admin.routes';
+import promoRoutes from '../modules/promos/promo.routes';
 import notificationRoutes from '../modules/notifications/notification.routes';
 import sosRoutes from '../modules/sos/sos.routes';
 import { logger } from '../shared/logger';
@@ -32,6 +33,7 @@ router.use(isAuthenticatedOrService);
 router.use('/invoices', emailRoutes);
 router.use('/subscriptions', subscriptionRoutes);
 router.use('/admin', adminRoutes);
+router.use('/promos', promoRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/sos', sosRoutes);
 
