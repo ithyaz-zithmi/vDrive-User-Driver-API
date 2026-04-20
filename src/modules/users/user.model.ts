@@ -2,6 +2,7 @@ import { Gender, UserRole, UserStatus, OnboardingStatus } from '../../enums/user
 export interface EmergencyContact {
   name: string;
   phone: string;
+  relationship: string;
 }
 export interface User {
   id?: string;
@@ -41,4 +42,6 @@ export interface User {
   created_at?: Date;
   updated_at?: Date;
   is_trip_verified?: boolean;
+  referral_code?: string;
+  referral_count?: number;
 }

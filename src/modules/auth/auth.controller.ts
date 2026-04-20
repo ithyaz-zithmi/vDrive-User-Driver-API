@@ -174,6 +174,7 @@ export const AuthController = {
         email,
         status,
         device_id,
+        referral_code,
       } = req.body;
 
       // check if user already exists
@@ -195,6 +196,7 @@ export const AuthController = {
         status: status ?? UserStatus.ACTIVE,
         device_id: device_id ?? '',
         onboarding_status: OnboardingStatus.PROFILE_COMPLETED,
+        referral_code: referral_code ?? null,
       };
 
       const newUser = await UserService.createUser(body);

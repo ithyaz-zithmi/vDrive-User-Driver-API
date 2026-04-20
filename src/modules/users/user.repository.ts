@@ -123,4 +123,12 @@ export const UserRepository = {
     const result = await query('SELECT fcm_token FROM users WHERE id = $1', [id]);
     return result.rows[0]?.fcm_token || null;
   },
+
+  async incrementReferralCount(id: string) {
+    const result = await query(
+      `UPDATE users SET referral_count = referral_count + 1 WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    return result.rows[0] || null;
+  }
 };

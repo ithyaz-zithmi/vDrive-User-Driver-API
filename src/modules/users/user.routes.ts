@@ -19,6 +19,13 @@ router.patch(
   UserController.updateUser
 );
 
+router.patch(
+  '/add-emergency-contacts',
+   validateParams(UserValidation.idValidation),
+  validateBody(UserValidation.updateUserValidation),
+  UserController.updateUser
+)
+
 router.delete('/:id', validateParams(UserValidation.idValidation), UserController.deleteUser);
 
 router.patch('/block/:id', validateParams(UserValidation.idValidation), UserController.blockUser);

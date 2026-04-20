@@ -61,11 +61,12 @@ export const TripController = {
 
   async createTrip(req: Request, res: Response, next: NextFunction) {
     try {
+      const { coupon_code, ...tripDataRaw } = req.body;
       const tripData = {
-        ...req.body,
+        ...tripDataRaw,
         created_by: (req as any).adminId,
       };
-      const trip = await TripService.createTrip(tripData);
+      const trip = await TripService.createTrip(tripData, coupon_code);
       notifyAdmin('NEW_TRIP', {
         id: trip.trip_id,
         userId: trip.user_id,

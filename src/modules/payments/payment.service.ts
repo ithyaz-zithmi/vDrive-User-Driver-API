@@ -12,7 +12,7 @@ export const PaymentService = {
   async createRazorpayRideOrder(amount: number): Promise<IRazorpayOrderResponse> {
     try {
       const options = {
-        amount: amount * 100, // INR to Paise
+        amount: Math.round(amount * 100), // INR to Paise
         currency: 'INR',
         receipt: `rcpt_${Date.now()}`,
       };
@@ -54,7 +54,7 @@ export const PaymentService = {
   async createRazorpayOrder(driverId: string, planId: number, billingCycle: string, amount: number): Promise<IRazorpayOrderResponse> {
     try {
       const options = {
-        amount: amount * 100, // INR to Paise
+        amount: Math.round(amount * 100), // INR to Paise
         currency: 'INR',
         receipt: `rcpt_${Date.now()}`,
       };

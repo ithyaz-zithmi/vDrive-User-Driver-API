@@ -60,6 +60,9 @@ export interface Trip {
   ended_at?: Date;
   created_by?: string;
   updated_by?: string;
+  applied_coupon_id?: string;
+  coupon_code?: string;
+  discount?: number;
   created_at?: Date;
   updated_at?: Date;
   [key: string]: unknown;

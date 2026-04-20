@@ -208,8 +208,8 @@ export const TripRepository = {
 
     const result = await query(
       `
-      INSERT INTO trips (user_id, ride_type, service_type,driver_allowance, trip_status, booking_type,is_for_self,passenger_details, original_scheduled_start_time, scheduled_start_time, pickup_lat, pickup_lng, pickup_address, drop_lat, drop_lng, drop_address, distance_km,trip_duration_minutes, base_fare, platform_fee, total_fare, paid_amount, payment_status, vehicle_model, vehicle_type, transmission_type, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,NOW(),NOW())
+      INSERT INTO trips (user_id, ride_type, service_type,driver_allowance, trip_status, booking_type,is_for_self,passenger_details, original_scheduled_start_time, scheduled_start_time, pickup_lat, pickup_lng, pickup_address, drop_lat, drop_lng, drop_address, distance_km,trip_duration_minutes, base_fare, platform_fee, total_fare, paid_amount, payment_status, vehicle_model, vehicle_type, transmission_type, discount, applied_coupon_id, coupon_code, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,NOW(),NOW())
       RETURNING *;
     `,
       [
@@ -236,9 +236,12 @@ export const TripRepository = {
         data.total_fare,
         data.paid_amount || 0,
         data.payment_status || 'PENDING',
-         data.vehicle_model,
+        data.vehicle_model,
         data.vehicle_type,
         data.transmission_type,
+        data.discount || 0,
+        data.applied_coupon_id || null,
+        data.coupon_code || null,
       ]
     );
 
@@ -529,4 +532,14 @@ export const TripRepository = {
       [driverId, tripId]
     );
   },
+
+  async getCompletedRideCount(userId: string): Promise<number> {
+    const result = await query(
+      `SELECT COUNT(*) 
+       FROM trips
+       WHERE user_id = $1 AND trip_status = 'COMPLETED';`,
+      [userId]
+    );
+    return parseInt(result.rows[0].count, 10);
+  }
 };

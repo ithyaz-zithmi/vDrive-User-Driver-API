@@ -14,6 +14,9 @@ import { DriverRepository } from '../drivers/driver.repository';
 import { DriverAvailabilityStatus } from '../drivers/driver.model';
 import { TripSocketEvent } from '../../sockets/socket.types';
 import { logger } from '../../shared/logger';
+import { ReferralService } from '../referrals/referral.service';
+import { ReferralRepository } from '../referrals/referral.repository';
+import { CouponService } from '../coupon-management/coupon.service';
 // Keep global map
 const tripBroadcastTimers = new Map<string, NodeJS.Timeout>();
 
@@ -48,9 +51,38 @@ export const TripService = {
     }
     return trip;
   },
-  async createTrip(data: Partial<Trip>) {
+  async createTrip(data: Partial<Trip>, couponCode?: string) {
     // Generate a 4-digit OTP
     data.otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+      // First calculate full fare BEFORE discount
+  const baseFare = data.base_fare!;
+  const allowance = data.driver_allowance ?? 0;
+  const waitingCharge = data.waiting_charges ?? 0;
+
+  const fullFare = baseFare + allowance + waitingCharge;
+
+
+  data.total_fare = fullFare;
+    // 🏷️ Handle Coupon Application
+    if (couponCode) {
+      try {
+        const coupon = await CouponService.validateCoupon(couponCode, data.user_id!, data.base_fare!);
+        const discountAmount = CouponService.calculateDiscount(coupon, data.base_fare!);
+        
+        data.applied_coupon_id = coupon.id;
+        data.coupon_code = couponCode;
+        data.discount = discountAmount;
+        data.total_fare = fullFare! - discountAmount;
+        
+        logger.info(`Coupon ${couponCode} applied to new trip. Discount: ${discountAmount}`);
+      } catch (error: any) {
+        logger.warn(`Failed to apply coupon ${couponCode}: ${error.message}`);
+        data.discount = 0;
+        data.total_fare = fullFare;
+        // We continue trip creation but without the coupon
+      }
+    }
 
     const trip = await TripRepository.createTrip(data);
     if (!trip) {
@@ -689,6 +721,36 @@ export const TripService = {
       }
     } catch (err: any) {
       console.error('Failed to notify user about ride completion:', err.message);
+    }
+
+    // Referral Rewards Trigger
+    try {
+      if (trip.user_id) {
+        const rideCount = await TripRepository.getCompletedRideCount(trip.user_id);
+        if (rideCount === 1) { // First completed ride
+          const relationship = await ReferralRepository.getReferralRelationshipByReferred(trip.user_id);
+          if (relationship && relationship.status === 'PENDING') {
+            await ReferralService.completeReferral(relationship.id, trip.user_id, trip.total_fare || 0);
+            logger.info(`Referral reward processed for user ${trip.user_id} on their first ride.`);
+          }
+        }
+      }
+    } catch (refError) {
+      logger.error('Error processing referral reward on completion:', refError);
+    }
+
+    // 🎫 Mark Coupon as Used
+    try {
+      if (trip.user_id && trip.applied_coupon_id) {
+        await CouponService.markAsUsed(
+          trip.applied_coupon_id,
+          trip.user_id,
+          trip.trip_id!,
+          trip.discount || 0
+        );
+      }
+    } catch (couponError) {
+      logger.error('Error marking coupon as used on completion:', couponError);
     }
 
     const updatedTrip = await TripRepository.findById(tripId);
