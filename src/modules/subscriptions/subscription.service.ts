@@ -1,9 +1,11 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { SubscriptionRepository } from './subscription.repository';
+import { PromoService } from '../promos/promo.service';
 import { CreateOrderRequest, VerifyPaymentRequest } from './subscription.model';
 import { query, getClient } from '../../shared/database';
 import axios from 'axios';
+import config from '../../config';
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID as string,
@@ -23,8 +25,37 @@ export const SubscriptionService = {
     else if (input.billing_cycle === 'month') amount = Number(plan.monthly_price);
     else throw new Error('Invalid billing cycle');
 
+    // Dynamic Discount Logic
+    let discountAmount = 0;
+    let appliedPromoId: number | undefined;
+
+    // 1. Promo Code Check (Universal & Targeted)
+    if (input.promo_code) {
+      const validation = await PromoService.validatePromo(input.promo_code, driverId, amount);
+      if (!validation.isValid) {
+        throw new Error(validation.message || 'Invalid promo code');
+      }
+      discountAmount = validation.discountAmount;
+      appliedPromoId = validation.promo?.id;
+    }
+
+    // 2. First Recharge Check (Fallback / Combo)
+    // Note: Decision based on question 3 in plan - currently we check if a promo wasn't already applied 
+    // or if we want to stack them. For now, let's allow stacking if the user wants, or keep it as is.
+    // Based on createOrder history, I'll keep the Math.max logic style but updated.
+    
+    if (Number(plan.first_recharge_discount || 0) > 0) {
+      const hasPurchasedBefore = await SubscriptionRepository.hasSuccessfulPayments(driverId);
+      if (!hasPurchasedBefore) {
+        const firstDiscount = (amount * Number(plan.first_recharge_discount)) / 100;
+        discountAmount = Math.max(discountAmount, firstDiscount);
+      }
+    }
+
+    amount = Math.max(0, amount - discountAmount);
+
     const options = {
-      amount: amount * 100, // Razorpay expects amount in paise
+      amount: Math.round(amount * 100), // Razorpay expects amount in paise
       currency: 'INR',
       receipt: `sub_${driverId.substring(0, 8)}_${Date.now()}`,
     };
@@ -39,6 +70,8 @@ export const SubscriptionService = {
       currency: 'INR',
       razorpay_order_id: order.id,
       status: 'pending',
+      applied_promo_id: appliedPromoId,
+      discount_amount: discountAmount
     });
 
     return {
@@ -78,6 +111,11 @@ export const SubscriptionService = {
 
       // Update payment status
       await SubscriptionRepository.updatePaymentStatus(razorpay_order_id, 'completed', razorpay_payment_id, razorpay_signature, client);
+
+      // Record promo usage if applicable
+      if (payment.applied_promo_id) {
+        await PromoService.usePromo(Number(payment.applied_promo_id), driverId, payment.id, Number(payment.discount_amount || 0), client);
+      }
 
       // Check if driver already had an active subscription to mark this as a renewal
       const oldSub = await SubscriptionRepository.getActiveSubscription(driverId, client);
@@ -125,11 +163,13 @@ export const SubscriptionService = {
 
         const actionText = isRenewal ? 'renewed' : 'activated';
 
-        const webhookUrl = process.env.ADMIN_WEBHOOK_URL || 'http://localhost:3000/api/webhooks/driver-events';
+        const webhookUrl = `${config.adminBackendUrl}/api/webhooks/driver-events`;
         axios.post(webhookUrl, {
           eventType: isRenewal ? 'SUBSCRIPTION_RENEWED' : 'SUBSCRIPTION_ACTIVATED',
           message: `Driver ${driverName} ${actionText} ${planName}`,
           data: { driverId, planId: payment.plan_id, driverName, planName, isRenewal }
+        }, {
+          headers: { 'x-api-key': config.internalServiceApiKey }
         }).catch(err => console.error(`Webhook trigger failed: ${err.message}`));
       } catch (e) {
         // Ignore 

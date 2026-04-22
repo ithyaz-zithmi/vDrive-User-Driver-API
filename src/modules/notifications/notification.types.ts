@@ -31,6 +31,7 @@ export enum UserNotificationType {
     RIDE_COMPLETED = 'RIDE_COMPLETED',
     PAYMENT_SUCCESS = 'PAYMENT_SUCCESS',
     PAYMENT_FAILED = 'PAYMENT_FAILED',
+    SOS_RESOLVED = 'SOS_RESOLVED',
 }
 
 // ─── Driver Notification Types ────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export enum DriverNotificationType {
     WALLET_DEBITED = 'WALLET_DEBITED',
     RIDE_STARTED = 'RIDE_STARTED',
     RIDE_COMPLETED = 'RIDE_COMPLETED',
+    SOS_RESOLVED = 'SOS_RESOLVED',
 }
 
 // ─── Admin Notification Types ─────────────────────────────────────────────────

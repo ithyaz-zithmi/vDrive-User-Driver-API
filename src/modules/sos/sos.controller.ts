@@ -17,6 +17,15 @@ export class SosController {
     }
   }
 
+  static async getActiveSos(req: Request, res: Response, next: NextFunction) {
+    try {
+      const activeSos = await SosService.getActiveSosWithDetails();
+      return successResponse(res, 200, 'Active SOS Alerts retrieved', activeSos);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async updateLocation(req: Request, res: Response, next: NextFunction) {
     try {
       const { sos_id, latitude, longitude } = req.body;

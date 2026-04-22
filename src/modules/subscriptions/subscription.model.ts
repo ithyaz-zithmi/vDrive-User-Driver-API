@@ -1,13 +1,22 @@
 export interface SubscriptionPlan {
   id: number;
   name: string;
+  plan_name: string;
+  description?: string;
+  plan_type?: string;
+  ride_limit?: number;
+  validity_days?: number;
+  price?: number;
   daily_price: number;
   weekly_price: number;
   monthly_price: number;
   features: any;
+  promo_code?: string;
+  promo_discount?: number;
+  first_recharge_discount?: number;
   is_active: boolean;
   created_at: Date;
-  updated_at: Date;
+  updated_at?: Date;
 }
 
 export interface DriverSubscription {
@@ -33,6 +42,8 @@ export interface PaymentRecord {
   razorpay_payment_id?: string;
   razorpay_signature?: string;
   status: 'pending' | 'completed' | 'failed';
+  applied_promo_id?: number;
+  discount_amount?: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -40,6 +51,7 @@ export interface PaymentRecord {
 export interface CreateOrderRequest {
   plan_id: number;
   billing_cycle: 'day' | 'week' | 'month';
+  promo_code?: string;
 }
 
 export interface VerifyPaymentRequest {
