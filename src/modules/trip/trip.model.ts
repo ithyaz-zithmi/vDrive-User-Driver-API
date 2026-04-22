@@ -43,6 +43,7 @@ export interface Trip {
   waiting_time_minutes?: number;
   base_fare: number;
   waiting_charges?: number;
+  additional_charges?: number;
   driver_allowance?: number;
   platform_fee: number;
   total_fare: number;
@@ -118,6 +119,7 @@ export interface TripDetailsType {
   time_fare_per_minute: number;
   time_fare: number;
   waiting_charges: number;
+  additional_charges: number;
   driver_allowance: number;
   return_compensation: number;
   platform_fee: number;

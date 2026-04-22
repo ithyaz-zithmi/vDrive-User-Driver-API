@@ -535,5 +535,32 @@ export const TripController = {
     }
   },
 
+  async assignToDriver(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { driver_id } = req.body;
+      if (!driver_id) throw { statusCode: 400, message: 'driver_id is required' };
 
+      const trip = await TripService.assignToDriver(id as string, driver_id);
+      return successResponse(res, 200, 'Trip assigned to driver successfully. Waiting for acceptance.', trip);
+    } catch (err: any) {
+      logger.error(`assignToDriver error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async triggerBroadcast(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { radius } = req.body;
+      const io = req.app.get('io');
+
+      const result = await TripService.triggerBroadcast(id as string, Number(radius), io);
+
+      return successResponse(res, 200, `Broadcasted to ${result.notifiedCount} drivers`, result);
+    } catch (err: any) {
+      logger.error(`triggerBroadcast error: ${err.message}`);
+      next(err);
+    }
+  },
 };

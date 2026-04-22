@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../users/user.model';
 import { UserStatus, UserRole, OnboardingStatus } from '../../enums/user.enums';
 import { UserService } from '../users/user.service';
-import { formFullName } from '../../utilities/helper';
+import { formFullName, generateOTP } from '../../utilities/helper';
 import { notifyAdmin } from '../../sockets/admin-socket.service';
 import { AuthRepository } from './auth.repository';
 import { query } from '../../shared/database';
@@ -162,6 +162,7 @@ export const AuthController = {
   },
 
   async signUp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const otp = generateOTP();
     try {
       const {
         first_name,
@@ -197,6 +198,7 @@ export const AuthController = {
         device_id: device_id ?? '',
         onboarding_status: OnboardingStatus.PROFILE_COMPLETED,
         referral_code: referral_code ?? null,
+        otp: otp,
       };
 
       const newUser = await UserService.createUser(body);

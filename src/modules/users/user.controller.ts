@@ -4,7 +4,7 @@ import { successResponse } from '../../shared/errorHandler';
 import { User } from './user.model';
 import { OnboardingStatus, UserStatus } from '../../enums/user.enums';
 import { logger } from '../../shared/logger';
-import { cleanUndefined, formFullName } from '../../utilities/helper';
+import { cleanUndefined, formFullName, generateOTP } from '../../utilities/helper';
 import { UserRepository } from './user.repository';
 import { notifyAdmin } from '../../sockets/admin-socket.service';
 
@@ -44,6 +44,7 @@ export const UserController = {
   },
 
   async createUser(req: Request, res: Response, next: NextFunction) {
+    const otp = generateOTP();
     try {
       const body: User = {
         first_name: req.body.first_name ?? '',
@@ -56,6 +57,7 @@ export const UserController = {
         gender: req.body.gender || '',
         email: req.body.email || '',
         device_id: req.body.device_id || '',
+        otp: otp,
         created_by: (req as any).adminId,
       };
 

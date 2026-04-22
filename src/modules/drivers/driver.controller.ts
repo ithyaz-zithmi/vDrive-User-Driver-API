@@ -347,6 +347,25 @@ export const DriverController = {
     }
   },
 
+  async getAvailableDriversForAssignment(req: Request, res: Response) {
+    try {
+      const { lng, lat, radius } = req.body;
+      if (!lng || !lat) {
+        return res.status(400).json({ success: false, message: "Missing coordinates" });
+      }
+
+      const drivers = await DriverService.getAvailableDrivers(
+        Number(lng),
+        Number(lat),
+        Number(radius) || 500
+      );
+
+      return res.status(200).json({ success: true, data: drivers });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
   async updateLocation(req: Request, res: Response) {
     try {
       const { driverId, lat, lng, address } = req.body;

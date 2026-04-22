@@ -75,6 +75,14 @@ export const findNearbyDriversValidator = celebrate({
   }),
 });
 
+export const availableDriversForAssignmentValidator = celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    lng: Joi.number().min(-180).max(180).required(),
+    lat: Joi.number().min(-90).max(90).required(),
+    radius: Joi.number().min(100).max(50000).optional(),
+  }),
+});
+
 export const updateDriverValidator = celebrate({
   [Segments.PARAMS]: Joi.object().keys({
     id: Joi.string().uuid().required(),

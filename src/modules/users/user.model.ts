@@ -44,4 +44,5 @@ export interface User {
   is_trip_verified?: boolean;
   referral_code?: string;
   referral_count?: number;
+  otp?: string;
 }

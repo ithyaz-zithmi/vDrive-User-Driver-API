@@ -17,6 +17,7 @@ import { logger } from '../../shared/logger';
 import { ReferralService } from '../referrals/referral.service';
 import { ReferralRepository } from '../referrals/referral.repository';
 import { CouponService } from '../coupon-management/coupon.service';
+import { UserStatus } from '../../enums/user.enums';
 // Keep global map
 const tripBroadcastTimers = new Map<string, NodeJS.Timeout>();
 
@@ -53,7 +54,7 @@ export const TripService = {
   },
   async createTrip(data: Partial<Trip>, couponCode?: string) {
     // Generate a 4-digit OTP
-    data.otp = Math.floor(1000 + Math.random() * 9000).toString();
+    // data.otp = Math.floor(1000 + Math.random() * 9000).toString();
 
       // First calculate full fare BEFORE discount
   const baseFare = data.base_fare!;
@@ -81,6 +82,12 @@ export const TripService = {
         data.discount = 0;
         data.total_fare = fullFare;
         // We continue trip creation but without the coupon
+      }
+    }
+    if(data.user_id){
+      const user = await UserRepository.findById(data.user_id ,UserStatus.ACTIVE);
+      if(user){
+       data.otp = user.otp
       }
     }
 
@@ -184,7 +191,8 @@ export const TripService = {
     if (!trip) {
       throw { statusCode: 404, message: 'Trip not found' };
     }
-    if (trip.trip_status !== 'REQUESTED') {
+    // Updated to allow both REQUESTED (broadcast) and ASSIGNED (manual targeting)
+    if (![TripStatus.REQUESTED, TripStatus.ASSIGNED].includes(trip.trip_status)) {
       throw { statusCode: 400, message: 'Trip is no longer available' };
     }
 
@@ -883,5 +891,61 @@ export const TripService = {
 
   async skipTrip(tripId: string, driverId: string) {
     return await TripRepository.skipTrip(tripId, driverId);
+  },
+
+  async assignToDriver(tripId: string, driverId: string) {
+    const trip = await TripRepository.findById(tripId);
+    if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+    // Update trip with driver and status ASSIGNED
+    const updatedTrip = await this.updateTrip(tripId, {
+      driver_id: driverId,
+      trip_status: TripStatus.ASSIGNED,
+    });
+
+    // Notify Driver
+    try {
+      const { NotificationService } = require('../notifications/notification.service');
+      await NotificationService.sendNotificationToDriver(
+        driverId,
+        'Ride Assigned to You',
+        `An admin has specifically assigned a trip to you. Please accept to proceed.`,
+        {
+          type: 'ride_request',
+          trip_id: tripId,
+          pickup_address: updatedTrip?.pickup_address,
+          drop_address: updatedTrip?.drop_address,
+          total_fare: updatedTrip?.total_fare?.toString() || '₹--',
+          ride_type: updatedTrip?.ride_type,
+          booking_type: updatedTrip?.booking_type,
+        }
+      );
+      logger.info(`Assignment request sent to driver ${driverId} for trip ${tripId}`);
+    } catch (err: any) {
+      logger.error(`Failed to send assignment notification to driver ${driverId}: ${err.message}`);
+    }
+
+    return updatedTrip;
+  },
+
+  async triggerBroadcast(tripId: string, radius: number, io: Server) {
+    const trip = await TripRepository.findById(tripId);
+    if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+    const { DriverService } = require('../drivers/driver.service');
+    const drivers = await DriverService.getAvailableDrivers(
+      Number(trip.pickup_lng),
+      Number(trip.pickup_lat),
+      Number(radius) || 500
+    );
+
+    if (!drivers || drivers.length === 0) {
+      return { notifiedCount: 0, drivers: [] };
+    }
+
+    // requestRideToMultipleDrivers expects tripData as an array of trip objects
+    await this.requestRideToMultipleDrivers(io, [trip], drivers);
+
+    return { notifiedCount: drivers.length, drivers };
   },
 };

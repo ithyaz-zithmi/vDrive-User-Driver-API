@@ -2,7 +2,8 @@ export enum RideType {
   ONE_WAY = 'ONE_WAY',
   ROUND_TRIP = 'ROUND_TRIP',
   OUTSTATION = 'OUTSTATION',
-  DAILY = 'DAILY',
+  SCHEDULED ='SCHEDULED'
+  // DAILY = 'DAILY',
 }
 
 export enum ServiceType {
@@ -17,6 +18,7 @@ export enum BookingType {
 
 export enum TripStatus {
   REQUESTED = 'REQUESTED',
+  ASSIGNED = 'ASSIGNED',
   ACCEPTED = 'ACCEPTED',
   ARRIVING = 'ARRIVING',
   ARRIVED = 'ARRIVED',
