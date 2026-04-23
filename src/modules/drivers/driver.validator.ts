@@ -70,8 +70,16 @@ export const findNearbyDriversValidator = celebrate({
 
     newTrip: Joi.array().items(TripValidation.createTripValidation.unknown(true)).min(1).required(),
     // Radius: optional, defaults to 5km (5000 meters)
-    radius: Joi.number().min(100).max(50000).default(5000)
-      .messages({ 'number.max': 'Search radius cannot exceed 50km' }).optional(),
+    // radius: Joi.number().min(100).max(50000).default(5000)
+    //   .messages({ 'number.max': 'Search radius cannot exceed 50km' }).optional(),
+  }),
+});
+
+export const availableDriversForAssignmentValidator = celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    lng: Joi.number().min(-180).max(180).required(),
+    lat: Joi.number().min(-90).max(90).required(),
+    radius: Joi.number().min(100).max(50000).optional(),
   }),
 });
 

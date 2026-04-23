@@ -14,6 +14,10 @@ import { DriverRepository } from '../drivers/driver.repository';
 import { DriverAvailabilityStatus } from '../drivers/driver.model';
 import { TripSocketEvent } from '../../sockets/socket.types';
 import { logger } from '../../shared/logger';
+import { ReferralService } from '../referrals/referral.service';
+import { ReferralRepository } from '../referrals/referral.repository';
+import { CouponService } from '../coupon-management/coupon.service';
+import { UserStatus } from '../../enums/user.enums';
 // Keep global map
 const tripBroadcastTimers = new Map<string, NodeJS.Timeout>();
 
@@ -34,23 +38,58 @@ export const TripService = {
   },
 
   async getTripByUserId(id: string, role: string) {
-    const user = await TripRepository.findByUserId(id, role);
-    if (!user) {
-      throw { statusCode: 404, message: 'User not found' };
+    const trip = await TripRepository.findByUserId(id, role);
+    if (!trip) {
+      throw { statusCode: 404, message: 'Trip not found' };
     }
-    return user;
+    return trip;
   },
 
   async getTripById(id: string) {
     const trip = await TripRepository.findById(id);
     if (!trip) {
-      throw { statusCode: 404, message: 'User not found' };
+      throw { statusCode: 404, message: 'Trip not found' };
     }
     return trip;
   },
-  async createTrip(data: Partial<Trip>) {
+  async createTrip(data: Partial<Trip>, couponCode?: string) {
     // Generate a 4-digit OTP
-    data.otp = Math.floor(1000 + Math.random() * 9000).toString();
+    // data.otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+      // First calculate full fare BEFORE discount
+  const baseFare = data.base_fare!;
+  const allowance = data.driver_allowance ?? 0;
+  const waitingCharge = data.waiting_charges ?? 0;
+
+  const fullFare = baseFare + allowance + waitingCharge;
+
+
+  data.total_fare = fullFare;
+    // 🏷️ Handle Coupon Application
+    if (couponCode) {
+      try {
+        const coupon = await CouponService.validateCoupon(couponCode, data.user_id!, data.base_fare!);
+        const discountAmount = CouponService.calculateDiscount(coupon, data.base_fare!);
+        
+        data.applied_coupon_id = coupon.id;
+        data.coupon_code = couponCode;
+        data.discount = discountAmount;
+        data.total_fare = fullFare! - discountAmount;
+        
+        logger.info(`Coupon ${couponCode} applied to new trip. Discount: ${discountAmount}`);
+      } catch (error: any) {
+        logger.warn(`Failed to apply coupon ${couponCode}: ${error.message}`);
+        data.discount = 0;
+        data.total_fare = fullFare;
+        // We continue trip creation but without the coupon
+      }
+    }
+    if(data.user_id){
+      const user = await UserRepository.findById(data.user_id ,UserStatus.ACTIVE);
+      if(user){
+       data.otp = user.otp
+      }
+    }
 
     const trip = await TripRepository.createTrip(data);
     if (!trip) {
@@ -152,12 +191,12 @@ export const TripService = {
     if (!trip) {
       throw { statusCode: 404, message: 'Trip not found' };
     }
-    if (trip.trip_status !== 'REQUESTED') {
+    // Updated to allow both REQUESTED (broadcast) and ASSIGNED (manual targeting)
+    if (![TripStatus.REQUESTED, TripStatus.ASSIGNED].includes(trip.trip_status)) {
       throw { statusCode: 400, message: 'Trip is no longer available' };
     }
 
     const driver = await DriverRepository.findById(driverId);
-    logger.info(`driver`, driver);
     if (!driver) {
       throw { statusCode: 404, message: 'Driver not found' };
     }
@@ -692,6 +731,36 @@ export const TripService = {
       console.error('Failed to notify user about ride completion:', err.message);
     }
 
+    // Referral Rewards Trigger
+    try {
+      if (trip.user_id) {
+        const rideCount = await TripRepository.getCompletedRideCount(trip.user_id);
+        if (rideCount === 1) { // First completed ride
+          const relationship = await ReferralRepository.getReferralRelationshipByReferred(trip.user_id);
+          if (relationship && relationship.status === 'PENDING') {
+            await ReferralService.completeReferral(relationship.id, trip.user_id, trip.total_fare || 0);
+            logger.info(`Referral reward processed for user ${trip.user_id} on their first ride.`);
+          }
+        }
+      }
+    } catch (refError) {
+      logger.error('Error processing referral reward on completion:', refError);
+    }
+
+    // 🎫 Mark Coupon as Used
+    try {
+      if (trip.user_id && trip.applied_coupon_id) {
+        await CouponService.markAsUsed(
+          trip.applied_coupon_id,
+          trip.user_id,
+          trip.trip_id!,
+          trip.discount || 0
+        );
+      }
+    } catch (couponError) {
+      logger.error('Error marking coupon as used on completion:', couponError);
+    }
+
     const updatedTrip = await TripRepository.findById(tripId);
 
     // broadcastTripUpdate(tripId, { status: TripStatus.COMPLETED, type: 'trip_updated', trip: updatedTrip });
@@ -822,5 +891,61 @@ export const TripService = {
 
   async skipTrip(tripId: string, driverId: string) {
     return await TripRepository.skipTrip(tripId, driverId);
+  },
+
+  async assignToDriver(tripId: string, driverId: string) {
+    const trip = await TripRepository.findById(tripId);
+    if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+    // Update trip with driver and status ASSIGNED
+    const updatedTrip = await this.updateTrip(tripId, {
+      driver_id: driverId,
+      trip_status: TripStatus.ASSIGNED,
+    });
+
+    // Notify Driver
+    try {
+      const { NotificationService } = require('../notifications/notification.service');
+      await NotificationService.sendNotificationToDriver(
+        driverId,
+        'Ride Assigned to You',
+        `An admin has specifically assigned a trip to you. Please accept to proceed.`,
+        {
+          type: 'ride_request',
+          trip_id: tripId,
+          pickup_address: updatedTrip?.pickup_address,
+          drop_address: updatedTrip?.drop_address,
+          total_fare: updatedTrip?.total_fare?.toString() || '₹--',
+          ride_type: updatedTrip?.ride_type,
+          booking_type: updatedTrip?.booking_type,
+        }
+      );
+      logger.info(`Assignment request sent to driver ${driverId} for trip ${tripId}`);
+    } catch (err: any) {
+      logger.error(`Failed to send assignment notification to driver ${driverId}: ${err.message}`);
+    }
+
+    return updatedTrip;
+  },
+
+  async triggerBroadcast(tripId: string, radius: number, io: Server) {
+    const trip = await TripRepository.findById(tripId);
+    if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+    const { DriverService } = require('../drivers/driver.service');
+    const drivers = await DriverService.getAvailableDrivers(
+      Number(trip.pickup_lng),
+      Number(trip.pickup_lat),
+      Number(radius) || 500
+    );
+
+    if (!drivers || drivers.length === 0) {
+      return { notifiedCount: 0, drivers: [] };
+    }
+
+    // requestRideToMultipleDrivers expects tripData as an array of trip objects
+    await this.requestRideToMultipleDrivers(io, [trip], drivers);
+
+    return { notifiedCount: drivers.length, drivers };
   },
 };

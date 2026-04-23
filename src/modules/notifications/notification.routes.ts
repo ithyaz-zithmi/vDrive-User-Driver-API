@@ -10,4 +10,10 @@ router.post('/test', NotificationController.sendTestNotification);
 // POST /api/notifications/send — send a notification to a driver
 router.post('/send', NotificationController.sendNotification);
 
+// POST /api/notifications/subscribe-to-coupon
+router.post('/subscribe-to-coupon', NotificationController.subscribeToCoupon);
+
+// POST /api/notifications/unsubscribe
+router.post('/unsubscribe', NotificationController.unsubscribeFromCoupon);
+
 export default router;

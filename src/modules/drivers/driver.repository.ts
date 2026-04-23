@@ -565,6 +565,7 @@ export const DriverRepository = {
         ROUND(ST_Distance(location, ST_MakePoint($1, $2)::geography)::numeric, 0) as distance_meters
     FROM drivers
     WHERE (availability->>'online')::boolean = true
+      AND (availability->>'status')::text = 'ONLINE'
       AND status = 'active'
       AND ST_DWithin(location, ST_MakePoint($1, $2)::geography, $3)
       -- AND last_active >= NOW() - INTERVAL '10 minutes'

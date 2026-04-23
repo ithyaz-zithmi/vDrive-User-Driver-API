@@ -42,7 +42,7 @@ export const UserRepository = {
     try {
 
       const result = await query(
-        `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, role, gender, date_of_birth, status, email, device_id, onboarding_status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()) RETURNING *;`,
+        `INSERT INTO users (first_name, last_name, full_name, phone_number, alternate_contact, role, gender, date_of_birth, status, email, device_id, onboarding_status, otp, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()) RETURNING *;`,
         [
           data.first_name,
           data.last_name,
@@ -56,6 +56,7 @@ export const UserRepository = {
           data.email,
           data.device_id,
           data.onboarding_status,
+          data.otp,
         ]
       );
       return result.rows[0] || null;
@@ -123,4 +124,12 @@ export const UserRepository = {
     const result = await query('SELECT fcm_token FROM users WHERE id = $1', [id]);
     return result.rows[0]?.fcm_token || null;
   },
+
+  async incrementReferralCount(id: string) {
+    const result = await query(
+      `UPDATE users SET referral_count = referral_count + 1 WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    return result.rows[0] || null;
+  }
 };

@@ -1,7 +1,11 @@
 import { UserRepository } from './user.repository';
+import { ReferralRepository } from '../referrals/referral.repository';
 import { User } from '../users/user.model';
 import { UserStatus } from '../../enums/user.enums';
 import admin from '../../config/firebase';
+import { ReferralController } from '../referrals/referral.controller';
+import { ReferralService } from '../referrals/referral.service';
+import { logger } from '../../shared/logger';
 
 export const UserService = {
   async getUsers(page: number = 1, limit: number = 10, search?: string) {
@@ -23,6 +27,23 @@ export const UserService = {
         statusCode: 500,
         message: 'User not found or could not be created',
       };
+    }
+    if (data.referral_code) {
+      const valid = await ReferralService.validateReferralCode(data.referral_code, user.id as string)
+      if(!valid.valid){
+        logger.info(`Invalid referral code for user ${user.id}: ${data.referral_code}`);
+      }
+      else{
+        const referrerId = valid.referrerId
+        if (referrerId) {
+          await UserRepository.incrementReferralCount(referrerId);
+          await ReferralService.createReferralRelationship(referrerId, user.id as string ,data.referral_code) ;
+        }
+      }
+    }
+    const res = await ReferralService.generateReferralCode(user.id as string);
+    if(res){
+      logger.info(`Referral code generated for user ${user.id}: ${res.referral_code}`);
     }
 
     return user;

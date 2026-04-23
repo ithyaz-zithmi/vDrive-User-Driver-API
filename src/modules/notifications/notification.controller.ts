@@ -3,6 +3,9 @@ import { Request, Response, NextFunction } from 'express';
 import { NotificationService } from './notification.service';
 import { successResponse } from '../../shared/errorHandler';
 import { logger } from '../../shared/logger';
+import { subscribeToTopic, unsubscribeFromTopic } from '../../config/firebase';
+import { CouponRepository } from '../coupon-management/coupon.repository';
+import { CouponService } from '../coupon-management/coupon.service';
 
 export const NotificationController = {
     /**
@@ -76,6 +79,93 @@ export const NotificationController = {
             });
         } catch (err: any) {
             logger.error(`Error sending notification: ${err.message}`);
+            next(err);
+        }
+    },
+
+    /**
+     * POST /api/notifications/subscribe-to-coupon
+     */
+    async subscribeToCoupon(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const { userId, couponCode, fcmToken } = req.body;
+
+            if (!userId || !couponCode || !fcmToken) {
+                throw { statusCode: 400, message: 'userId, couponCode, and fcmToken are required' };
+            }
+
+            // 1. Validate coupon
+            const coupon = await CouponRepository.findByCode(couponCode);
+            if (!coupon) {
+                throw { statusCode: 404, message: 'Invalid coupon code' };
+            }
+
+            // Additional validations: expiry, budget, user eligibility
+            // We use CouponService.validateCoupon for logic consistency
+            await CouponService.validateCoupon(couponCode, userId, 0); // Amount 0 just to check eligibility/expiry
+
+            // 2. Build topic: coupon_SAVE50
+            const topicName = `coupon_${couponCode}`;
+
+            // 3. Subscribe FCM token
+            const success = await subscribeToTopic(fcmToken, topicName);
+            if (!success) {
+                throw { statusCode: 500, message: 'Failed to subscribe to FCM topic' };
+            }
+
+            // 4. Save subscription entry in DB
+            await CouponRepository.subscribeUserToTopic({
+                userId,
+                couponId: coupon.id,
+                topicName,
+                fcmToken
+            });
+
+            return successResponse(res, 200, 'Subscribed to coupon topic successfully', {
+                userId,
+                couponCode,
+                topicName
+            });
+        } catch (err: any) {
+            logger.error(`Error in subscribeToCoupon: ${err.message}`);
+            next(err);
+        }
+    },
+
+    /**
+     * POST /api/notifications/unsubscribe
+     */
+    async unsubscribeFromCoupon(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const { userId, couponCode, fcmToken } = req.body;
+
+            if (!userId || !couponCode || !fcmToken) {
+                throw { statusCode: 400, message: 'userId, couponCode, and fcmToken are required' };
+            }
+
+            const topicName = `coupon_${couponCode}`;
+
+            // 1. Unsubscribe FCM
+            await unsubscribeFromTopic(fcmToken, topicName);
+
+            // 2. Delete subscription record from DB
+            await CouponRepository.unsubscribeUserFromTopic(userId, topicName);
+
+            return successResponse(res, 200, 'Unsubscribed from coupon topic successfully', {
+                userId,
+                couponCode,
+                topicName
+            });
+        } catch (err: any) {
+            logger.error(`Error in unsubscribeFromCoupon: ${err.message}`);
             next(err);
         }
     },

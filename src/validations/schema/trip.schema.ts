@@ -9,6 +9,8 @@ import {
   CancelBy,
   ChangeType,
   ChangeBy,
+  VehicleType,
+  TransmissionType
 } from '../../enums/trip.enums';
 import { enumString } from '../../utilities/helper';
 
@@ -154,13 +156,13 @@ export const dropAddressRule = Joi.string().trim().required().messages({
   'any.required': 'drop_address is required',
 });
 
-export const distanceKmRule = Joi.number().positive().required().messages({
+export const distanceKmRule = Joi.number().min(0).required().messages({
   'number.base': 'distance_km must be a number',
-  'number.positive': 'distance_km must be a positive number',
+  'number.min': 'distance_km cannot be negative',
   'any.required': 'distance_km is required',
 });
 
-export const tripDurationMinutesRule = Joi.number().integer().positive().optional().messages({
+export const tripDurationMinutesRule = Joi.number().integer().min(0).optional().messages({
   'number.base': 'trip_duration_minutes must be a number',
   'number.integer': 'trip_duration_minutes must be an integer',
   'number.positive': 'trip_duration_minutes must be positive',
@@ -172,9 +174,9 @@ export const waitingTimeMinutesRule = Joi.number().integer().min(0).optional().m
   'number.min': 'waiting_time_minutes cannot be negative',
 });
 
-export const baseFareRule = Joi.number().positive().required().messages({
+export const baseFareRule = Joi.number().min(0).required().messages({
   'number.base': 'base_fare must be a number',
-  'number.positive': 'base_fare must be positive',
+  'number.min': 'base_fare cannot be negative',
   'any.required': 'base_fare is required',
 });
 
@@ -188,15 +190,15 @@ export const driverAllowanceRule = Joi.number().min(0).optional().messages({
   'number.min': 'driver_allowance cannot be negative',
 });
 
-export const platformFeeRule = Joi.number().positive().required().messages({
+export const platformFeeRule = Joi.number().min(0).required().messages({
   'number.base': 'platform_fee must be a number',
-  'number.positive': 'platform_fee must be positive',
+  'number.min': 'platform_fee cannot be negative',
   'any.required': 'platform_fee is required',
 });
 
-export const totalFareRule = Joi.number().positive().required().messages({
+export const totalFareRule = Joi.number().min(0).required().messages({
   'number.base': 'total_fare must be a number',
-  'number.positive': 'total_fare must be positive',
+  'number.min': 'total_fare cannot be negative',
   'any.required': 'total_fare is required',
 });
 
@@ -265,4 +267,34 @@ export const passenger_details = Joi.object({
 
 export const tripCodeRule = Joi.string().optional().messages({
   'string.base': 'trip_code must be a string',
+});
+
+export const vehicleModelRule = Joi.string().optional().messages({
+    'string.base': 'vehicle_model must be a string',
+});
+
+export const vehicleTypeRule = enumString(Object.values(VehicleType))
+    .optional()
+    .messages({
+        'any.only': `vehicle_type must be one of [${Object.values(VehicleType).join(', ')}]`,
+        'string.base': 'vehicle_type must be a string',
+    });
+
+export const transmissionTypeRule = enumString(Object.values(TransmissionType))
+    .optional()
+    .messages({
+        'any.only': `transmission_type must be one of [${Object.values(TransmissionType).join(', ')}]`,
+        'string.base': 'transmission_type must be a string',
+    });
+
+export const couponCodeRule = Joi.string().allow('',null).optional().messages({
+    'string.base': 'coupon_code must be a string',
+});
+
+export const discountRule = Joi.number().allow('',null).optional().messages({
+    'number.base': 'discount must be a number',
+});
+
+export const appliedCouponIdRule = Joi.string().allow('',null).optional().messages({
+    'string.base': 'applied_coupon_id must be a string',
 });
