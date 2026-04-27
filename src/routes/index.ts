@@ -18,6 +18,7 @@ import adminRoutes from '../modules/admin/admin.routes';
 import promoRoutes from '../modules/promos/promo.routes';
 import notificationRoutes from '../modules/notifications/notification.routes';
 import sosRoutes from '../modules/sos/sos.routes';
+import referralRoutes from '../modules/drivers/referral.routes';
 import { logger } from '../shared/logger';
 
 const router = Router();
@@ -29,6 +30,7 @@ router.get('/health-check', (req, res) => {
 
 // ✅ PUBLIC ROUTES
 router.use('/auth', authRoutes);
+router.use('/drivers/referral', referralRoutes);
 router.use(isAuthenticatedOrService);
 router.use('/invoices', emailRoutes);
 router.use('/subscriptions', subscriptionRoutes);

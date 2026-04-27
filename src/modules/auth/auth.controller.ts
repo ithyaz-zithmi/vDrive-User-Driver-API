@@ -50,10 +50,10 @@ export const AuthController = {
   },
 
   async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, role, otp, device_id, allow_new_device, fcm_token } = req.body;
+    const { phone_number, role, otp, device_id, allow_new_device, fcm_token, referred_by } = req.body;
 
     try {
-      logger.info(`OTP request received for: ${phone_number || 'unknown'}`);
+      logger.info(`OTP verification attempt for: ${phone_number || 'unknown'} (Referral: ${referred_by || 'none'})`);
 
       if (!phone_number?.trim()) {
         throw { statusCode: 400, message: 'Phone number is required' };
@@ -66,6 +66,7 @@ export const AuthController = {
         device_id,
         allow_new_device,
         fcm_token,
+        referred_by,
       });
 
       logger.info(`OTP sent successfully to: ${phone_number}`);
@@ -236,10 +237,10 @@ export const AuthController = {
   },
 
   async driverLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { phone_number, otp, device_id, fcm_token } = req.body;
+    const { phone_number, otp, device_id, fcm_token, referred_by } = req.body;
 
     try {
-      logger.info(`Driver login request received for: ${phone_number || 'unknown'}`);
+      logger.info(`Driver login request received for: ${phone_number || 'unknown'} (Referral: ${referred_by || 'none'})`);
 
       if (!phone_number?.trim()) {
         throw { statusCode: 400, message: 'Phone number is required' };
@@ -252,6 +253,7 @@ export const AuthController = {
         device_id,
         allow_new_device: true,
         fcm_token,
+        referred_by,
       });
 
       logger.info(`Driver login successful for: ${phone_number}`);

@@ -213,6 +213,33 @@ export const TripController = {
   },
 
 
+  async assignDriver(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { driver_id, vehicle_id } = req.body;
+
+      if (!driver_id) throw { statusCode: 400, message: 'driver_id is required' };
+
+      const trip = await TripService.updateTrip(id as string, {
+        driver_id,
+        vehicle_id,
+        trip_status: TripStatus.ASSIGNED,
+      });
+
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
+
+      return successResponse(res, 200, 'Driver assigned successfully', trip);
+    } catch (err: any) {
+      logger.error(`assignDriver error: ${err.message}`);
+      next(err);
+    }
+  },
+
   async acceptTrip(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

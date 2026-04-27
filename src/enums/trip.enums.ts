@@ -17,6 +17,7 @@ export enum BookingType {
 
 export enum TripStatus {
   REQUESTED = 'REQUESTED',
+  ASSIGNED = 'ASSIGNED',
   ACCEPTED = 'ACCEPTED',
   ARRIVING = 'ARRIVING',
   ARRIVED = 'ARRIVED',

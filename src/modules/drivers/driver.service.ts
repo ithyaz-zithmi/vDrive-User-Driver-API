@@ -7,6 +7,7 @@ import { query } from '../../shared/database';
 import { Trip } from '../trip/trip.model';
 import { logger } from '../../shared/logger';
 import { DriverDocumentsRepository } from './driver-documents.repository';
+import { ReferralRepository } from './referral.repository';
 import axios from 'axios';
 import config from '../../config';
 
@@ -100,6 +101,38 @@ export const DriverService = {
     }
 
     driverData.onboarding_status = nextStatus;
+
+    // Handle Referral logic
+    if (driverData.referred_by) {
+      try {
+        const existingReferral = await ReferralRepository.findByRefereeId(id, 'DRIVER');
+        if (!existingReferral) {
+          const referrerId = await ReferralRepository.findByCode(driverData.referred_by, 'DRIVER');
+          if (referrerId && referrerId !== id) {
+            await ReferralRepository.createReferral({
+              referrer_id: referrerId,
+              referee_id: id,
+              referral_type: 'DRIVER',
+              status: 'PENDING'
+            });
+            logger.info(`Referral created: driver ${id} referred by ${referrerId}`);
+            
+            // IMPORTANT: Update driverData.referred_by to the referrer's UUID 
+            // so it can be stored correctly in the 'drivers' table
+            driverData.referred_by = referrerId;
+          } else {
+            // If code is invalid or own code, don't try to save it as an ID
+            delete driverData.referred_by;
+          }
+        } else {
+          // If already referred, don't update this field again
+          delete driverData.referred_by;
+        }
+      } catch (err) {
+        logger.error(`Error processing referral in updateDriver: ${err}`);
+        delete driverData.referred_by;
+      }
+    }
 
     const driver = await DriverRepository.update(id, driverData);
     if (!driver) {

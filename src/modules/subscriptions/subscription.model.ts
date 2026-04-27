@@ -44,6 +44,7 @@ export interface PaymentRecord {
   status: 'pending' | 'completed' | 'failed';
   applied_promo_id?: number;
   discount_amount?: number;
+  reward_amount_used?: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -52,6 +53,7 @@ export interface CreateOrderRequest {
   plan_id: number;
   billing_cycle: 'day' | 'week' | 'month';
   promo_code?: string;
+  use_reward_balance?: boolean;
 }
 
 export interface VerifyPaymentRequest {

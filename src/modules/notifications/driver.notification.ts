@@ -20,6 +20,15 @@ export const DriverNotifications = {
             androidChannelId: 'ride_requests',
         }),
 
+    rideAssigned: (fcmToken: string, bookingId: string) =>
+        sendToDevice(fcmToken, {
+            type: DriverNotificationType.RIDE_ASSIGNED,
+            title: 'New Ride Assigned',
+            body: `A new ride has been assigned to you. Tap to view details.`,
+            data: { bookingId },
+            androidChannelId: 'ride_requests',
+        }),
+
     rideStarted: (fcmToken: string, bookingId: string) =>
         sendToDevice(fcmToken, {
             type: DriverNotificationType.RIDE_STARTED,

@@ -18,7 +18,8 @@ export const UserValidation = {
     status: commonSchema.statusRule,
     email: commonSchema.emailRule,
     device_id: commonSchema.deviceIdRule,
-    onboarding_status: commonSchema.onboardingStatusRule.optional()
+    onboarding_status: commonSchema.onboardingStatusRule.optional(),
+    referred_by: Joi.string().allow('', null).optional(),
   }),
 
   updateUserValidation: Joi.object({
@@ -36,7 +37,8 @@ export const UserValidation = {
     favourite_places: commonSchema.updateFavoritesSchema.optional(),
     emergency_contacts: commonSchema.emergencyContactSchema.optional(),
     settings_preferences: commonSchema.settingsPreferenceSchema.optional(),
-    onboarding_status: commonSchema.onboardingStatusRule.optional()
+    onboarding_status: commonSchema.onboardingStatusRule.optional(),
+    referred_by: Joi.string().allow('', null).optional(),
   })
     .min(1)
     .messages({

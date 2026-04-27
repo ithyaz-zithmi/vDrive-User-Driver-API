@@ -50,6 +50,7 @@ router.post('/status/:id',
   TripController.updateTripStatusController
 );
 
+router.post('/:id/assign', TripController.assignDriver);
 router.post('/:id/accept', validateParams(TripValidation.idValidation), TripController.acceptTrip);
 router.post('/:id/start', validateParams(TripValidation.idValidation), TripController.startTrip);
 router.post('/:id/arriving', validateParams(TripValidation.idValidation), TripController.arrivingTrip);
