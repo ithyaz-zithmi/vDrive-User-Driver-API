@@ -1,11 +1,14 @@
-import { ReferralRepository } from '../drivers/referral.repository';
+// src/modules/driver-referrals/driver-referral.service.ts
+// Driver referral business logic — reward processing, coupon issuance
+
+import { DriverReferralRepository } from './driver-referral.repository';
 import { DriverRepository } from '../drivers/driver.repository';
 import { PromoService } from '../promos/promo.service';
 import { NotificationService } from '../notifications/notification.service';
 import { logger } from '../../shared/logger';
-import { getClient, query } from '../../shared/database';
+import { getClient } from '../../shared/database';
 
-export const ReferralService = {
+export const DriverReferralService = {
   async processReferralReward(driverId: string) {
     const client = await getClient();
 
@@ -13,7 +16,7 @@ export const ReferralService = {
       await client.query('BEGIN');
 
       // 1. Check if driver was referred
-      const referral = await ReferralRepository.findByRefereeId(driverId, 'DRIVER', client);
+      const referral = await DriverReferralRepository.findByRefereeId(driverId, 'DRIVER', client);
       if (!referral || referral.status === 'COMPLETED') {
         await client.query('ROLLBACK');
         return; 
@@ -32,10 +35,10 @@ export const ReferralService = {
       }
 
       // 3. Mark referral as COMPLETED
-      await ReferralRepository.updateStatus(referral.id, 'COMPLETED', client);
+      await DriverReferralRepository.updateStatus(referral.id, 'COMPLETED', client);
 
       // 4. Issue Rewards
-      const config = await ReferralRepository.getActiveConfig('DRIVER');
+      const config = await DriverReferralRepository.getActiveConfig('DRIVER');
       
       const REFEREE_REWARD = config ? parseFloat(config.referee_reward) : 100;
       const REFERRER_REWARD = config ? parseFloat(config.referrer_reward) : 50;
@@ -75,10 +78,10 @@ export const ReferralService = {
 
   async issueWalletReward(driverId: string, amount: number, type: string, description: string, client?: any) {
     try {
-      // 1. Add credit to driver's wallet (pass client to keep it transactional if needed)
+      // 1. Add credit to driver's wallet
       await DriverRepository.addCredit(driverId, amount, 'REFERRAL_REWARD', description, client);
 
-      // 2. Send Push Notification (Non-transactional, but we do it after DB success)
+      // 2. Send Push Notification
       const title = '🎁 Referral Reward Received!';
       const body = `Congratulations! ₹${amount} has been added to your wallet rewards for: ${description}.`;
       
@@ -90,7 +93,7 @@ export const ReferralService = {
       return true;
     } catch (error) {
       logger.error(`Error issuing wallet reward to ${driverId}:`, error);
-      throw error; // Rethrow to trigger rollback if in transaction
+      throw error;
     }
   },
 

@@ -7,7 +7,7 @@ import { query } from '../../shared/database';
 import { Trip } from '../trip/trip.model';
 import { logger } from '../../shared/logger';
 import { DriverDocumentsRepository } from './driver-documents.repository';
-import { ReferralRepository } from './referral.repository';
+import { DriverReferralRepository } from '../driver-referrals/driver-referral.repository';
 import axios from 'axios';
 import config from '../../config';
 
@@ -105,11 +105,11 @@ export const DriverService = {
     // Handle Referral logic
     if (driverData.referred_by) {
       try {
-        const existingReferral = await ReferralRepository.findByRefereeId(id, 'DRIVER');
+        const existingReferral = await DriverReferralRepository.findByRefereeId(id, 'DRIVER');
         if (!existingReferral) {
-          const referrerId = await ReferralRepository.findByCode(driverData.referred_by, 'DRIVER');
+          const referrerId = await DriverReferralRepository.findByCode(driverData.referred_by, 'DRIVER');
           if (referrerId && referrerId !== id) {
-            await ReferralRepository.createReferral({
+            await DriverReferralRepository.createReferral({
               referrer_id: referrerId,
               referee_id: id,
               referral_type: 'DRIVER',
@@ -325,6 +325,26 @@ export const DriverService = {
     }
 
     return { drivers, searchedRadius };
+  },
+
+  async getAvailableDrivers(lng: number, lat: number, radius: number): Promise<any[]> {
+    const driversData = await DriverRepository.findNearbyDrivers(lng, lat, radius);
+    
+    // Process distance and ETA
+    // Average speed 30km/h => 0.5 km/min => 500 meters/min
+    const AVG_SPEED_METERS_PER_MIN = 500; 
+
+    return driversData.map(d => ({
+      id: d.id,
+      name: d.full_name || `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'Unknown',
+      phone_number: d.phone_number,
+      rating: parseFloat(d.rating) || 0,
+      current_lat: d.current_lat,
+      current_lng: d.current_lng,
+      distance_meters: parseInt(d.distance_meters),
+      distance_km: parseFloat((parseInt(d.distance_meters) / 1000).toFixed(2)),
+      eta_minutes: Math.ceil(parseInt(d.distance_meters) / AVG_SPEED_METERS_PER_MIN) || 1, // at least 1 min
+    }));
   },
 
   async syncLocation(id: string, lat: number, lng: number, address: string) {

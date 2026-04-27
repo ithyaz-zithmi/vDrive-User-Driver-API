@@ -1,7 +1,7 @@
 import { getClient, query } from '../../shared/database';
 import { logger } from '../../shared/logger';
 import { Driver, CreateDriverInput, UpdateDriverInput, Document, KYC, Credit, Availability, Performance, Payments } from './driver.model';
-import { ReferralRepository } from './referral.repository';
+import { DriverReferralRepository } from '../driver-referrals/driver-referral.repository';
 
 export const DriverRepository = {
   async findDriverById(id: string): Promise<Driver | null> {
@@ -15,12 +15,12 @@ export const DriverRepository = {
       await client.query('BEGIN');
 
       // Generate unique referral code for the new driver
-      const referralCode = await ReferralRepository.generateUniqueReferralCode(driverData.first_name, 'DRIVER');
+      const referralCode = await DriverReferralRepository.generateUniqueReferralCode(driverData.first_name, 'DRIVER');
 
       // Handle referred_by if provided (it comes as a code from the frontend)
       let referrerId = null;
       if (driverData.referred_by) {
-        referrerId = await ReferralRepository.findByCode(driverData.referred_by, 'DRIVER');
+        referrerId = await DriverReferralRepository.findByCode(driverData.referred_by, 'DRIVER');
       }
 
       // Insert driver
@@ -70,7 +70,7 @@ export const DriverRepository = {
 
       // If referred, create entry in referrals table
       if (referrerId) {
-        await ReferralRepository.createReferral({
+        await DriverReferralRepository.createReferral({
           referrer_id: referrerId,
           referee_id: driverId,
           referral_type: 'DRIVER',
@@ -586,6 +586,7 @@ export const DriverRepository = {
         ROUND(ST_Distance(location, ST_MakePoint($1, $2)::geography)::numeric, 0) as distance_meters
     FROM drivers
     WHERE (availability->>'online')::boolean = true
+      AND (availability->>'status')::text = 'ONLINE'
       AND status = 'active'
       AND ST_DWithin(location, ST_MakePoint($1, $2)::geography, $3)
       -- AND last_active >= NOW() - INTERVAL '10 minutes'

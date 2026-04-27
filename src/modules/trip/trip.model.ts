@@ -6,6 +6,8 @@ import {
   RideType,
   ServiceType,
   TripStatus,
+  VehicleType,
+  TransmissionType
 } from '../../enums/trip.enums';
 
 //user-driver
@@ -14,6 +16,9 @@ export interface Trip {
   user_id: string;
   driver_id?: string;
   vehicle_id?: string;
+  vehicle_model?: string;
+  vehicle_type?: VehicleType;
+  transmission_type?: TransmissionType;
   ride_type: RideType;
   service_type: ServiceType;
   booking_type: BookingType;
@@ -38,6 +43,7 @@ export interface Trip {
   waiting_time_minutes?: number;
   base_fare: number;
   waiting_charges?: number;
+  additional_charges?: number;
   driver_allowance?: number;
   platform_fee: number;
   total_fare: number;
@@ -55,6 +61,9 @@ export interface Trip {
   ended_at?: Date;
   created_by?: string;
   updated_by?: string;
+  applied_coupon_id?: string;
+  coupon_code?: string;
+  discount?: number;
   created_at?: Date;
   updated_at?: Date;
   [key: string]: unknown;
@@ -110,6 +119,7 @@ export interface TripDetailsType {
   time_fare_per_minute: number;
   time_fare: number;
   waiting_charges: number;
+  additional_charges: number;
   driver_allowance: number;
   return_compensation: number;
   platform_fee: number;

@@ -45,6 +45,8 @@ export const getIO = (): Server => {
     return io;
 };
 
+
+
 // -----------------------------------------------------------------------------
 // Handlers
 // -----------------------------------------------------------------------------
@@ -231,7 +233,7 @@ export const emitToRoom = (room: string, event: string, data: unknown): void => 
     }
 };
 
-export const emitToAll = (event: string, data: unknown): void => {
+export const emitToAll = (event: string, data: any): void => {
     if (io) {
         io.emit(event, data);
     }
@@ -273,4 +275,3 @@ export const emitToUser = (userId: string, event: TripSocketEvent, data: TripEve
         timestamp: new Date().toISOString(),
     });
 };
-

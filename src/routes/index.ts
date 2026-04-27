@@ -18,7 +18,9 @@ import adminRoutes from '../modules/admin/admin.routes';
 import promoRoutes from '../modules/promos/promo.routes';
 import notificationRoutes from '../modules/notifications/notification.routes';
 import sosRoutes from '../modules/sos/sos.routes';
-import referralRoutes from '../modules/drivers/referral.routes';
+import referralRoutes from '../modules/referrals/referral.routes';
+import couponRoutes from '../modules/coupon-management/coupon.routes';
+import driverReferralRoutes from '../modules/driver-referrals/driver-referral.routes';
 import { logger } from '../shared/logger';
 
 const router = Router();
@@ -30,7 +32,8 @@ router.get('/health-check', (req, res) => {
 
 // ✅ PUBLIC ROUTES
 router.use('/auth', authRoutes);
-router.use('/drivers/referral', referralRoutes);
+router.use('/referrals', referralRoutes);
+router.use('/drivers/referral', driverReferralRoutes);
 router.use(isAuthenticatedOrService);
 router.use('/invoices', emailRoutes);
 router.use('/subscriptions', subscriptionRoutes);
@@ -51,6 +54,8 @@ router.use('/pricing', pricingRoutes);
 router.use('/drivers/documents', driverDocumentsRoutes);
 router.use('/drivers/trip-verification', tripVerificationRoutes);
 router.use('/s3', s3Routes);
+router.use('/coupons', couponRoutes);
+
 
 export default router;
 

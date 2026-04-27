@@ -26,5 +26,17 @@ export const initCronJobs = () => {
     }
   });
 
+  // Coupon Notification: Daily at 5 PM
+  cron.schedule('0 15 * * *', async () => {
+    logger.info('Running expiring coupon notification job...');
+    const { CouponService } = require('../modules/coupon-management/coupon.service');
+    try {
+      await CouponService.sendExpiryNotificationsForAllCoupons();
+      logger.info('Expiring coupon notification job completed successfully.');
+    } catch (error) {
+      logger.error('Error in Coupon Notification job:', error);
+    }
+  });
+
   console.log('✅ Cron jobs initialized');
 };

@@ -133,6 +133,7 @@ export const updateFavoritesSchema = Joi.array()
 export const emergencyContactObject = Joi.object({
   name: Joi.string().required(),
   phone: Joi.string().regex(/^[0-9+]{10,15}$/).required(),
+  relationship: Joi.string().required()
 });
 
 export const emergencyContactSchema = Joi.array()
@@ -168,3 +169,15 @@ export const onboardingStatusRule = enumString(Object.values(OnboardingStatus)).
   'any.required': 'Onboarding status is required',
   'string.empty': 'Onboarding status cannot be empty',
 })
+
+export const referralCodeRule = Joi.string()
+  .trim()
+  .allow(null, '')
+  .optional()
+  .when(Joi.string().min(1), {
+    then: Joi.string().pattern(/^REF_[A-Z0-9]{12}$/),
+  })
+  .messages({
+    'string.pattern.base': 'Invalid referral code format',
+    'string.base': 'Referral code must be a string',
+  });

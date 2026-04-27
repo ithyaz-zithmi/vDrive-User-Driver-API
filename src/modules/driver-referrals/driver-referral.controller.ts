@@ -1,11 +1,14 @@
+// src/modules/driver-referrals/driver-referral.controller.ts
+// Driver referral API handlers
+
 import { Request, Response, NextFunction } from 'express';
-import { ReferralRepository } from './referral.repository';
-import { DriverRepository } from './driver.repository';
+import { DriverReferralRepository } from './driver-referral.repository';
+import { DriverRepository } from '../drivers/driver.repository';
 import { successResponse } from '../../shared/errorHandler';
 import { logger } from '../../shared/logger';
 import { PromoService } from '../promos/promo.service';
 
-export const ReferralController = {
+export const DriverReferralController = {
   /**
    * GET /drivers/referral/code
    * Returns the current driver's referral code. Generates one if it doesn't exist.
@@ -22,11 +25,11 @@ export const ReferralController = {
 
       // Generate if doesn't exist (for existing drivers before the feature)
       if (!referralCode) {
-        referralCode = await ReferralRepository.generateUniqueReferralCode(driver.first_name || 'VDR', 'DRIVER');
+        referralCode = await DriverReferralRepository.generateUniqueReferralCode(driver.first_name || 'VDR', 'DRIVER');
         await DriverRepository.update(driverId, { referral_code: referralCode });
       }
 
-      const config = await ReferralRepository.getActiveConfig('DRIVER');
+      const config = await DriverReferralRepository.getActiveConfig('DRIVER');
       const refereeReward = config ? config.referee_reward : 100;
 
       return successResponse(res, 200, 'Referral code fetched successfully', {
@@ -48,7 +51,7 @@ export const ReferralController = {
       const driverId = req.user?.id;
       if (!driverId) throw { statusCode: 401, message: 'Unauthorized' };
 
-      const stats = await ReferralRepository.getStatsByReferrer(driverId, 'DRIVER');
+      const stats = await DriverReferralRepository.getStatsByReferrer(driverId, 'DRIVER');
       const referralCoupons = await PromoService.getReferralRewardsForDriver(driverId);
       
       const totalCouponValue = referralCoupons.reduce((sum, p) => sum + Number(p.discount_value), 0);
@@ -63,7 +66,7 @@ export const ReferralController = {
           value: p.discount_value,
           description: p.description,
           expiry_date: p.expiry_date,
-          is_used: (p as any).isUsed // Use the status from the service
+          is_used: (p as any).isUsed
         })),
       });
     } catch (err: any) {
@@ -88,7 +91,7 @@ export const ReferralController = {
       const cleanCode = code.trim().toUpperCase();
 
       // Find the driver who owns this code
-      const referrerId = await ReferralRepository.findByCode(cleanCode, 'DRIVER');
+      const referrerId = await DriverReferralRepository.findByCode(cleanCode, 'DRIVER');
 
       if (!referrerId) {
         return successResponse(res, 200, 'Invalid referral code', {
@@ -97,7 +100,7 @@ export const ReferralController = {
         });
       }
 
-      const config = await ReferralRepository.getActiveConfig('DRIVER');
+      const config = await DriverReferralRepository.getActiveConfig('DRIVER');
       const refereeReward = config ? config.referee_reward : 100;
 
       return successResponse(res, 200, 'Referral code is valid', {

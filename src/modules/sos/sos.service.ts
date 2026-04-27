@@ -4,12 +4,13 @@ import { getIO, emitToRoom, emitToAll } from '../../sockets/socket';
 import { logger } from '../../shared/logger';
 import { SosRepository } from './sos.repository';
 import { DriverRepository } from '../drivers/driver.repository';
-import { TripRepository } from '../trip/trip.repository';
 import { UserRepository } from '../users/user.repository';
+import { TripRepository } from '../trip/trip.repository';
+import { UserStatus } from '../../enums/user.enums';
 import { DriverNotifications, UserNotifications } from '../notifications';
 
 export class SosService {
-  static async triggerSos(user_id: string, user_type: 'driver' | 'user', trip_id?: string) {
+  static async triggerSos(user_id: string, user_type: 'driver' | 'customer', trip_id?: string) {
     // 1. Check if SOS already active for this user
     let sosEvent = await SosRepository.findActiveSosByUser(user_id, user_type);
     const isNewEvent = !sosEvent;
@@ -63,10 +64,13 @@ export class SosService {
         };
       }
     } else {
-      enrichedUserData = {
-        user_id,
-        type: 'user'
-      };
+      const user = await UserRepository.findById(user_id, UserStatus.ACTIVE);
+      enrichedUserData = user ? {
+        full_name: user.full_name || `${user.first_name} ${user.last_name}`,
+        phone_number: user.phone_number,
+        vdrive_id: user.user_code,
+        type: 'customer'
+      } : null;
     }
 
     const trip = currentTripId ? await TripRepository.findById(currentTripId) : null;

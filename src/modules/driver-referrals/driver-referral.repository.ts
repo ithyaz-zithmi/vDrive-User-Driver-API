@@ -1,7 +1,10 @@
+// src/modules/driver-referrals/driver-referral.repository.ts
+// Driver referral database operations
+
 import { query } from '../../shared/database';
 import { logger } from '../../shared/logger';
 
-export interface Referral {
+export interface DriverReferral {
   id: string;
   referrer_id: string;
   referee_id: string;
@@ -11,8 +14,8 @@ export interface Referral {
   updated_at: string;
 }
 
-export const ReferralRepository = {
-  async createReferral(data: Partial<Referral>, client?: any): Promise<Referral> {
+export const DriverReferralRepository = {
+  async createReferral(data: Partial<DriverReferral>, client?: any): Promise<DriverReferral> {
     const q = client ? client.query.bind(client) : query;
     const { referrer_id, referee_id, referral_type, status } = data;
     const result = await q(
@@ -24,7 +27,7 @@ export const ReferralRepository = {
     return result.rows[0];
   },
 
-  async findByRefereeId(refereeId: string, referralType: 'DRIVER' | 'CUSTOMER', client?: any): Promise<Referral | null> {
+  async findByRefereeId(refereeId: string, referralType: 'DRIVER' | 'CUSTOMER', client?: any): Promise<DriverReferral | null> {
     const q = client ? client.query.bind(client) : query;
     const result = await q(
       'SELECT * FROM referrals WHERE referee_id = $1 AND referral_type = $2',
@@ -33,7 +36,7 @@ export const ReferralRepository = {
     return result.rows[0] || null;
   },
 
-  async updateStatus(id: string, status: 'PENDING' | 'COMPLETED' | 'EXPIRED', client?: any): Promise<Referral> {
+  async updateStatus(id: string, status: 'PENDING' | 'COMPLETED' | 'EXPIRED', client?: any): Promise<DriverReferral> {
     const q = client ? client.query.bind(client) : query;
     const result = await q(
       'UPDATE referrals SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',

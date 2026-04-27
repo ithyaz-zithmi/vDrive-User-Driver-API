@@ -208,8 +208,8 @@ export const TripRepository = {
 
     const result = await query(
       `
-      INSERT INTO trips (user_id, ride_type, service_type,driver_allowance, trip_status, booking_type,is_for_self,passenger_details, original_scheduled_start_time, scheduled_start_time, pickup_lat, pickup_lng, pickup_address, drop_lat, drop_lng, drop_address, distance_km,trip_duration_minutes, base_fare, platform_fee, total_fare, paid_amount, payment_status, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW(),NOW())
+      INSERT INTO trips (user_id, ride_type, service_type,driver_allowance, trip_status, booking_type,is_for_self,passenger_details, original_scheduled_start_time, scheduled_start_time, pickup_lat, pickup_lng, pickup_address, drop_lat, drop_lng, drop_address, distance_km,trip_duration_minutes, base_fare,additional_charges, platform_fee, total_fare, paid_amount, payment_status, vehicle_model, vehicle_type, transmission_type, discount, applied_coupon_id, coupon_code, otp, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,NOW(),NOW())
       RETURNING *;
     `,
       [
@@ -233,9 +233,17 @@ export const TripRepository = {
         data.trip_duration_minutes || 0,
         data.base_fare,
         data.platform_fee,
+        data.additional_charges || 0,
         data.total_fare,
         data.paid_amount || 0,
         data.payment_status || 'PENDING',
+        data.vehicle_model,
+        data.vehicle_type,
+        data.transmission_type,
+        data.discount || 0,
+        data.applied_coupon_id || null,
+        data.coupon_code || null,
+        data.otp || null,
       ]
     );
 
@@ -254,11 +262,23 @@ export const TripRepository = {
 
 
   async findActiveTripByUserId(userId: string): Promise<any> {
-    const result = await query(
+   const result = await query(
       `SELECT 
         t.*, 
-        d.full_name as driver_name,
-        d.phone_number as driver_phone,
+        jsonb_build_object(
+                'id', d.id,
+                'first_name', d.first_name,
+                'last_name', d.last_name,
+                'full_name', d.full_name,
+                'phone_number', d.phone_number,
+                'profile_pic_url', d.profile_pic_url,
+                'rating', d.rating,
+                'current_lat', d.current_lat,
+                'current_lng', d.current_lng
+               -- 'vehicle_number', d.vehicle_number,
+               -- 'vehicle_model', d.vehicle_model,
+               -- 'vehicle_type', d.vehicle_type
+              ) AS driver_details,
         COALESCE(
           (SELECT jsonb_agg(tc ORDER BY tc.changed_at DESC)
            FROM trip_changes tc
@@ -274,7 +294,7 @@ export const TripRepository = {
 
        AND t.trip_status NOT IN ('COMPLETED', 'CANCELLED','MID_CANCELLED')
        AND (
-         (t.booking_type = 'LIVE' AND t.trip_status NOT IN ('COMPLETED', 'CANCELLED','MID_CANCELLED'))
+         (t.booking_type = 'LIVE' AND t.trip_status = 'LIVE')
          OR
          (t.booking_type = 'SCHEDULED')
        )
@@ -514,4 +534,14 @@ export const TripRepository = {
       [driverId, tripId]
     );
   },
+
+  async getCompletedRideCount(userId: string): Promise<number> {
+    const result = await query(
+      `SELECT COUNT(*) 
+       FROM trips
+       WHERE user_id = $1 AND trip_status = 'COMPLETED';`,
+      [userId]
+    );
+    return parseInt(result.rows[0].count, 10);
+  }
 };

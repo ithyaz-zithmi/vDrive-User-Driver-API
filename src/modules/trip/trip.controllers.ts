@@ -61,11 +61,12 @@ export const TripController = {
 
   async createTrip(req: Request, res: Response, next: NextFunction) {
     try {
+      const { coupon_code, ...tripDataRaw } = req.body;
       const tripData = {
-        ...req.body,
+        ...tripDataRaw,
         created_by: (req as any).adminId,
       };
-      const trip = await TripService.createTrip(tripData);
+      const trip = await TripService.createTrip(tripData, coupon_code);
       notifyAdmin('NEW_TRIP', {
         id: trip.trip_id,
         userId: trip.user_id,
@@ -121,6 +122,9 @@ export const TripController = {
         feedback: req.body.feedback,
         re_route_id: req.body.re_route_id,
         updated_by: (req as any).adminId,
+        vehicle_model: req.body.vehicle_model,
+        vehicle_type: req.body.vehicle_type,
+        transmission_type: req.body.transmission_type,
       };
 
       const updateData = cleanUndefined(updateTripData);
@@ -608,5 +612,32 @@ export const TripController = {
     }
   },
 
+  async assignToDriver(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { driver_id } = req.body;
+      if (!driver_id) throw { statusCode: 400, message: 'driver_id is required' };
 
+      const trip = await TripService.assignToDriver(id as string, driver_id);
+      return successResponse(res, 200, 'Trip assigned to driver successfully. Waiting for acceptance.', trip);
+    } catch (err: any) {
+      logger.error(`assignToDriver error: ${err.message}`);
+      next(err);
+    }
+  },
+
+  async triggerBroadcast(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { radius } = req.body;
+      const io = req.app.get('io');
+
+      const result = await TripService.triggerBroadcast(id as string, Number(radius), io);
+
+      return successResponse(res, 200, `Broadcasted to ${result.notifiedCount} drivers`, result);
+    } catch (err: any) {
+      logger.error(`triggerBroadcast error: ${err.message}`);
+      next(err);
+    }
+  },
 };
