@@ -135,7 +135,9 @@ export const UserController = {
 
   async blockUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.blockUser(req.params.id as string);
+      const { id } = req.params;
+      const {notes} = req.body;
+      const user = await UserService.blockUser(id as string, notes);
       return successResponse(res, 200, 'User blocked successfully', user);
     } catch (err: any) {
       logger.error(`blockUser error: ${err.message}`);
@@ -155,7 +157,9 @@ export const UserController = {
 
   async disableUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.disableUser(req.params.id as string);
+      const {id} = req.params;
+      const {notes} = req.body;
+      const user = await UserService.disableUser(id as string, notes);
       return successResponse(res, 200, 'User disabled successfully', user);
     } catch (err: any) {
       logger.error(`disableUser error: ${err.message}`);
@@ -175,7 +179,9 @@ export const UserController = {
 
   async suspendUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.suspendUser(req.params.id);
+      const {id} = req.params;
+      const {notes} = req.body;
+      const user = await UserService.suspendUser(id as string, notes);
       return successResponse(res, 200, 'User suspended successfully', user);
     } catch (err: any) {
       logger.error(`suspendUser error: ${err.message}`);

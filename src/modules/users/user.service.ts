@@ -75,8 +75,8 @@ export const UserService = {
     return user;
   },
 
-  async blockUser(id: string) {
-    const user = await UserRepository.updateUserStatus(id, UserStatus.BLOCKED);
+  async blockUser(id: string, notes?: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.BLOCKED, notes);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }
@@ -84,15 +84,16 @@ export const UserService = {
   },
 
   async unblockUser(id: string) {
-    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
+    const notes = 'User unblocked by admin';
+    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE, notes);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }
     return user;
   },
 
-  async disableUser(id: string) {
-    const user = await UserRepository.updateUserStatus(id, UserStatus.INACTIVE);
+  async disableUser(id: string, notes?: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.INACTIVE, notes);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }
@@ -100,6 +101,7 @@ export const UserService = {
   },
 
   async enableUser(id: string) {
+    const notes = 'User enabled by admin';
     const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
@@ -107,16 +109,17 @@ export const UserService = {
     return user;
   },
 
-  async suspendUser(id: string) {
-    const user = await UserRepository.updateUserStatus(id, UserStatus.SUSPENDED);
+  async suspendUser(id: string , notes?: string) {
+    const user = await UserRepository.updateUserStatus(id, UserStatus.SUSPENDED, notes);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }
     return user;
   },
 
-  async unsuspendUser(id: string) {
-    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE);
+  async unsuspendUser(id: string ) {
+    const notes = 'User unsuspended by admin';
+    const user = await UserRepository.updateUserStatus(id, UserStatus.ACTIVE, notes);
     if (!user) {
       throw { statusCode: 404, message: 'User not found' };
     }

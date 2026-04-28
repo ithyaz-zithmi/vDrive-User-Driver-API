@@ -84,10 +84,10 @@ export const UserRepository = {
     return result.rows[0] || null;
   },
 
-  async updateUserStatus(id: string, status: string): Promise<User | null> {
+  async updateUserStatus(id: string, status: string, notes?: string): Promise<User | null> {
     const result = await query(
-      `UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *;`,
-      [status, id]
+      `UPDATE users SET status = $1, notes = $2, updated_at = NOW() WHERE id = $3 RETURNING *;`,
+      [status, notes, id]
     );
 
     return result.rows[0] || null;
