@@ -168,6 +168,14 @@ export const TripController = {
 
     try {
       const trip = await TripService.cancelTrip(id as string, trip_status, cancel_reason, cancel_by, notes);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status, 
+        cancelReason: trip.cancel_reason,
+        cancelledBy: trip.cancel_by 
+      });
       const userfcmtoken = trip.user_id
         ? await UserRepository.getFcmTokenById(trip.user_id)
         : null;
@@ -209,6 +217,33 @@ export const TripController = {
   },
 
 
+  async assignDriver(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { driver_id, vehicle_id } = req.body;
+
+      if (!driver_id) throw { statusCode: 400, message: 'driver_id is required' };
+
+      const trip = await TripService.updateTrip(id as string, {
+        driver_id,
+        vehicle_id,
+        trip_status: TripStatus.ASSIGNED,
+      });
+
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
+
+      return successResponse(res, 200, 'Driver assigned successfully', trip);
+    } catch (err: any) {
+      logger.error(`assignDriver error: ${err.message}`);
+      next(err);
+    }
+  },
+
   async acceptTrip(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
@@ -216,6 +251,13 @@ export const TripController = {
       if (!driverId) throw { statusCode: 400, message: 'driver_id is required' };
 
       const trip = await TripService.acceptTrip(id as string, driverId);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_ACCEPTED', { 
+        id: trip.trip_id, 
+        driverId: trip.driver_id,
+        status: trip.trip_status 
+      });
       return successResponse(res, 200, 'Trip accepted successfully', trip);
     } catch (err: any) {
       logger.error(`acceptTrip error: ${err.message}`);
@@ -227,6 +269,12 @@ export const TripController = {
     try {
       const { id } = req.params;
       const trip = await TripService.startTrip(id as string);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
       return successResponse(res, 200, 'Trip started successfully', trip);
     } catch (err: any) {
       logger.error(`startTrip error: ${err.message}`);
@@ -239,6 +287,13 @@ export const TripController = {
       const { id } = req.params;
       const { distance_km, trip_duration_minutes } = req.body;
       const trip = await TripService.completeTrip(id as string, distance_km, trip_duration_minutes);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status,
+        totalFare: trip.total_fare
+      });
       return successResponse(res, 200, 'Trip completed successfully', trip);
     } catch (err: any) {
       logger.error(`completeTrip error: ${err.message}`);
@@ -250,6 +305,12 @@ export const TripController = {
     try {
       const { id } = req.params;
       const trip = await TripService.arrivedTrip(id as string);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
       return successResponse(res, 200, 'Driver arrived at pickup successfully', trip);
     } catch (err: any) {
       logger.error(`arrivedTrip error: ${err.message}`);
@@ -261,6 +322,12 @@ export const TripController = {
     try {
       const { id } = req.params;
       const trip = await TripService.arrivingTrip(id as string);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
       return successResponse(res, 200, 'Driver is arriving at pickup', trip);
     } catch (err: any) {
       logger.error(`arrivingTrip error: ${err.message}`);
@@ -272,6 +339,12 @@ export const TripController = {
     try {
       const { id } = req.params;
       const trip = await TripService.destinationReachedTrip(id as string);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
       return successResponse(res, 200, 'Driver reached destination successfully', trip);
     } catch (err: any) {
       logger.error(`destinationReachedTrip error: ${err.message}`);
@@ -522,8 +595,12 @@ export const TripController = {
 
     try {
       const trip = await TripService.updateTripStatus(io, trip_id, trip_status);
-      // Notify admin backend of the status update
-      // notifyAdmin(trip_id, trip_status);
+      if (!trip) throw { statusCode: 404, message: 'Trip not found' };
+
+      notifyAdmin('TRIP_STATUS_UPDATE', { 
+        id: trip.trip_id, 
+        status: trip.trip_status 
+      });
 
       return res.status(200).json({
         success: true,

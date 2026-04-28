@@ -53,9 +53,9 @@ export const TripRepository = {
     }
     statusConditions.push(`(${requestedCond})`);
 
-    // Part 2: Rides accepted by THIS driver (only if driverId provided)
+    // Part 2: Rides assigned to or accepted by THIS driver (only if driverId provided)
     if (driverId) {
-      statusConditions.push(`(t.trip_status = 'ACCEPTED' AND t.driver_id = $${params.length + 1})`);
+      statusConditions.push(`(t.trip_status IN ('ASSIGNED', 'ACCEPTED') AND t.driver_id = $${params.length + 1})`);
       params.push(driverId);
     }
 
@@ -318,7 +318,7 @@ export const TripRepository = {
                 assigned_at = NOW()
             WHERE 
                 trip_id = $2 
-                AND trip_status = 'REQUESTED'
+                AND trip_status IN ('REQUESTED', 'ASSIGNED')
             RETURNING *;
         `;
     try {
@@ -520,7 +520,7 @@ export const TripRepository = {
       FROM trips t
       LEFT JOIN users u ON t.user_id = u.id
       WHERE t.driver_id = $1 
-      AND t.trip_status IN ('ACCEPTED', 'ARRIVING', 'ARRIVED', 'LIVE', 'DESTINATION_REACHED')
+      AND t.trip_status IN ('ASSIGNED', 'ACCEPTED', 'ARRIVING', 'ARRIVED', 'LIVE', 'DESTINATION_REACHED')
       ORDER BY t.created_at DESC
       LIMIT 1;`,
       [driverId]

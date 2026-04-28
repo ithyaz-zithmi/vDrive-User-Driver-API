@@ -16,6 +16,7 @@ import { TripSocketEvent } from '../../sockets/socket.types';
 import { logger } from '../../shared/logger';
 import { ReferralService } from '../referrals/referral.service';
 import { ReferralRepository } from '../referrals/referral.repository';
+import { DriverReferralService } from '../driver-referrals/driver-referral.service';
 import { CouponService } from '../coupon-management/coupon.service';
 import { UserStatus } from '../../enums/user.enums';
 // Keep global map
@@ -146,6 +147,24 @@ export const TripService = {
       actor_id: trip.updated_by ?? null,
       metadata: { changed_keys: fields },
     });
+
+    // ── 5. Notify Driver if Assigned ─────────────────────────────────────────
+    if (data.trip_status === TripStatus.ASSIGNED && trip.driver_id) {
+      try {
+        emitToRoom(`driver_${trip.driver_id}`, TripSocketEvent.TRIP_ASSIGNED, {
+          tripId: trip.trip_id,
+          status: TripStatus.ASSIGNED,
+          trip: trip,
+        });
+
+        const driverToken = await DriverRepository.getFcmTokenById(trip.driver_id);
+        if (driverToken) {
+          await DriverNotifications.rideAssigned(driverToken, trip.trip_id || '');
+        }
+      } catch (err: any) {
+        logger.error(`Failed to notify driver about assignment: ${err.message}`);
+      }
+    }
 
     return trip;
   },
@@ -716,6 +735,12 @@ export const TripService = {
           ...driver?.availability,
           status: upcoming.rows.length > 0 ? DriverAvailabilityStatus.HAS_UPCOMING_SCHEDULED : DriverAvailabilityStatus.ONLINE,
         },
+      });
+
+      // 🏆 Referral Reward Trigger
+      // Check if this was the driver's first trip and process referral if applicable
+      DriverReferralService.processReferralReward(driverId).catch(err => {
+        logger.error('Error processing referral reward:', err);
       });
     }
     try {

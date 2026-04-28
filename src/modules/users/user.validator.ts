@@ -20,6 +20,7 @@ export const UserValidation = {
     device_id: commonSchema.deviceIdRule,
     onboarding_status: commonSchema.onboardingStatusRule.optional(),
     referral_code: commonSchema.referralCodeRule.optional(),
+    referred_by: Joi.string().allow('', null).optional(),
   }),
 
   updateUserValidation: Joi.object({
@@ -39,6 +40,7 @@ export const UserValidation = {
     settings_preferences: commonSchema.settingsPreferenceSchema.optional(),
     onboarding_status: commonSchema.onboardingStatusRule.optional(),
     referral_code: commonSchema.referralCodeRule.optional(),
+    referred_by: Joi.string().allow('', null).optional(),
   })
     .min(1)
     .messages({

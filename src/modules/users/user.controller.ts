@@ -165,7 +165,7 @@ export const UserController = {
 
   async enableUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.enableUser(req.params.id);
+      const user = await UserService.enableUser(req.params.id as string);
       return successResponse(res, 200, 'User enabled successfully', user);
     } catch (err: any) {
       logger.error(`enableUser error: ${err.message}`);
@@ -175,7 +175,7 @@ export const UserController = {
 
   async suspendUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.suspendUser(req.params.id);
+      const user = await UserService.suspendUser(req.params.id as string);
       return successResponse(res, 200, 'User suspended successfully', user);
     } catch (err: any) {
       logger.error(`suspendUser error: ${err.message}`);
@@ -185,7 +185,7 @@ export const UserController = {
 
   async unsuspendUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.unsuspendUser(req.params.id);
+      const user = await UserService.unsuspendUser(req.params.id as string);
       return successResponse(res, 200, 'User unsuspended successfully', user);
     } catch (err: any) {
       logger.error(`unsuspendUser error: ${err.message}`);

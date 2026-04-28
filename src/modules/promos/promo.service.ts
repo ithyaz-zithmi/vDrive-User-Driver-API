@@ -89,5 +89,20 @@ export const PromoService = {
 
   async getAvailablePromosForDriver(driverId: string) {
     return await PromoRepository.findAvailableForDriver(driverId);
+  },
+
+  async getReferralRewardsForDriver(driverId: string) {
+    const rewards = await PromoRepository.findReferralRewardsForDriver(driverId);
+    
+    // Check usage for each reward to mark as used/unused
+    const rewardsWithStatus = await Promise.all(rewards.map(async (promo) => {
+      const usageCount = await PromoRepository.getUsageCount(promo.id, driverId);
+      return {
+        ...promo,
+        isUsed: usageCount > 0
+      };
+    }));
+
+    return rewardsWithStatus;
   }
 };

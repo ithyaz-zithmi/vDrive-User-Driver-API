@@ -20,9 +20,10 @@ interface VerifyOtpUser {
   device_id: string;
   allow_new_device: boolean;
   fcm_token: string;
+  referred_by?: string;
 }
 
-async function createNewUser(role: string, phone_number: string, device_id: string) {
+async function createNewUser(role: string, phone_number: string, device_id: string, referred_by?: string) {
   const baseInput: any = {
     first_name: '',
     last_name: '',
@@ -34,6 +35,7 @@ async function createNewUser(role: string, phone_number: string, device_id: stri
     onboarding_status: OnboardingStatus.PHONE_VERIFIED,
     date_of_birth: null,
     gender: null,
+    referred_by: referred_by || null,
   };
 
   if (role === 'driver') {
@@ -235,7 +237,7 @@ export const AuthService = {
   // ─── Verify OTP Methods ─────────────────────────────────────────────────────
   //****************************************************************************** 
 
-  async verifyOtp({ phone_number, role, otp, device_id, allow_new_device, fcm_token }: VerifyOtpUser) {
+  async verifyOtp({ phone_number, role, otp, device_id, allow_new_device, fcm_token, referred_by }: VerifyOtpUser) {
     try {
       logger.info(`OTP verification attempt for: ${phone_number} with role: ${role}`);
       const { maxAttempts: MaxAttempt, otpBlockDuration } = config.auth;
@@ -342,7 +344,7 @@ export const AuthService = {
 
       // Create new user/driver if not exists
       if (!isExistingUser) {
-        userData = await createNewUser(role, phone_number, device_id) as any;
+        userData = await createNewUser(role, phone_number, device_id, referred_by) as any;
         if(role === 'driver'){
         try {
           const webhookUrl = `${config.adminBackendUrl}/api/webhooks/driver-events`;
