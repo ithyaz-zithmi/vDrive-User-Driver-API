@@ -6,6 +6,7 @@ import admin from '../../config/firebase';
 import { ReferralController } from '../referrals/referral.controller';
 import { ReferralService } from '../referrals/referral.service';
 import { logger } from '../../shared/logger';
+import { EmailService } from '../email/email.service';
 
 export const UserService = {
   async getUsers(page: number = 1, limit: number = 10, search?: string) {
@@ -28,6 +29,12 @@ export const UserService = {
         message: 'User not found or could not be created',
       };
     }
+
+    if (data.email && data.role !== 'driver') {
+      EmailService.sendWelcomeEmail(data.email, data.first_name || data.full_name || 'Customer')
+        .catch(err => logger.error(`Welcome email failed for ${data.email}: ${err}`));
+    }
+
     if (data.referral_code) {
       const valid = await ReferralService.validateReferralCode(data.referral_code, user.id as string)
       if(!valid.valid){

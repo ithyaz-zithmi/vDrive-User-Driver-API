@@ -1,8 +1,6 @@
 import nodemailer, { Transporter, SendMailOptions } from 'nodemailer';
 import config from '../../config';
 
-console.log('User used for Auth:', config.email.user);
-console.log('Pass loaded for Auth:', config.email.pass ? 'LOADED' : 'MISSING');
 // Initialize the Nodemailer Transporter
 const transporter: Transporter = nodemailer.createTransport({
     service: config.email.service,

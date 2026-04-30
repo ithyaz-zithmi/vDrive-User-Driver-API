@@ -2,6 +2,8 @@ import cron from 'node-cron';
 import { SubscriptionRepository } from '../modules/subscriptions/subscription.repository';
 import { TripSchedulerService } from '../modules/trip/trip-scheduler.service';
 import { logger } from './logger';
+import { CouponService } from '../modules/coupon-management/coupon.service';
+import { PromoService } from '../modules/promos/promo.service';
 
 export const initCronJobs = () => {
   // Daily at midnight
@@ -27,14 +29,33 @@ export const initCronJobs = () => {
   });
 
   // Coupon Notification: Daily at 5 PM
-  cron.schedule('0 15 * * *', async () => {
+  cron.schedule('0 17 * * *', async () => {
     logger.info('Running expiring coupon notification job...');
-    const { CouponService } = require('../modules/coupon-management/coupon.service');
     try {
       await CouponService.sendExpiryNotificationsForAllCoupons();
       logger.info('Expiring coupon notification job completed successfully.');
     } catch (error) {
       logger.error('Error in Coupon Notification job:', error);
+    }
+  });
+
+  // Background Email Campaign Processor: Every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    logger.debug('Checking for pending coupon notification campaigns...');
+    try {
+      await CouponService.processPendingNotifications();
+    } catch (error) {
+      logger.error('Error in Email Campaign Processor job:', error);
+    }
+  });
+
+  // Background Promo Notification Processor: Every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    logger.debug('Checking for pending promo notification campaigns...');
+    try {
+      await PromoService.processPendingNotifications();
+    } catch (error) {
+      logger.error('Error in Email Campaign Processor job:', error);
     }
   });
 

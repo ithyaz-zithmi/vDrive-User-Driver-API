@@ -56,7 +56,7 @@ export const UserRepository = {
           data.email,
           data.device_id,
           data.onboarding_status,
-          data.otp,
+          data.otp || '0000',
         ]
       );
       return result.rows[0] || null;
@@ -131,5 +131,12 @@ export const UserRepository = {
       [id]
     );
     return result.rows[0] || null;
+  },
+
+  async incrementStats(id: string): Promise<void> {
+    await query(
+      `UPDATE users SET total_trips = COALESCE(total_trips, 0) + 1 WHERE id = $1`,
+      [id]
+    );
   }
 };

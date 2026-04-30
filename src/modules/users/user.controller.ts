@@ -7,6 +7,7 @@ import { logger } from '../../shared/logger';
 import { cleanUndefined, formFullName, generateOTP } from '../../utilities/helper';
 import { UserRepository } from './user.repository';
 import { notifyAdmin } from '../../sockets/admin-socket.service';
+import { EmailService } from '../email/email.service';
 
 export const UserController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
@@ -115,6 +116,11 @@ export const UserController = {
       updateUserData.full_name = formFullName(finalFirstName, finalLastName);
       const updateData = cleanUndefined(updateUserData);
       const updatedUser = await UserService.updateUser(id as string, updateData);
+
+      if (!existingUser.email && updateData.email && existingUser.role !== 'driver') {
+        EmailService.sendWelcomeEmail(updateData.email, updateData.first_name || updatedUser?.full_name || 'Customer')
+          .catch(err => logger.error(`Welcome email failed for ${updateData.email}: ${err}`));
+      }
 
       return successResponse(res, 200, 'User updated successfully', updatedUser);
     } catch (err: any) {

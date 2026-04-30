@@ -46,4 +46,5 @@ export interface User {
   referral_count?: number;
   otp?: string;
   notes?: string;
+  total_trips?: number;
 }
