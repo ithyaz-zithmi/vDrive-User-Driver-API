@@ -22,6 +22,7 @@ export const AuthValidation = {
     device_id: deviceIdRule,
     allow_new_device: allowNewDeviceRule,
     fcm_token: fcmTokenRule,
+    referred_by: Joi.string().allow('', null).optional(),
   }),
 
   refreshTokenValidation: Joi.object({

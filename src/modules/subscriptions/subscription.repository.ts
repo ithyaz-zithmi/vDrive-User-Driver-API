@@ -24,11 +24,11 @@ export const SubscriptionRepository = {
 
   async createPayment(paymentData: Partial<PaymentRecord>, client?: any): Promise<PaymentRecord> {
     const q = client ? client.query.bind(client) : query;
-    const { driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount } = paymentData;
+    const { driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount, reward_amount_used } = paymentData;
     const result = await q(
-      `INSERT INTO payments (driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount]
+      `INSERT INTO payments (driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount, reward_amount_used)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [driver_id, plan_id, billing_cycle, amount, currency, razorpay_order_id, status, applied_promo_id, discount_amount, reward_amount_used]
     );
     return result.rows[0];
   },

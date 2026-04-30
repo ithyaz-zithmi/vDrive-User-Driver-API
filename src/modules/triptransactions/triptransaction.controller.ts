@@ -31,7 +31,7 @@ export const TripTransactionController = {
             const limit = Math.min(parseQueryInt(String(req.query.limit ?? ''), 100), 500);
             const offset = parseQueryInt(String(req.query.offset ?? ''), 0);
 
-            const result = await TripTransactionService.getTripHistory(id, { limit, offset });
+            const result = await TripTransactionService.getTripHistory(id as string, { limit, offset });
             console.log(result, "result")
             if (!result) {
                 throw { statusCode: 204, message: 'Trip transaction history is empty' };
@@ -46,7 +46,7 @@ export const TripTransactionController = {
     async getTransactionById(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params;
-            const data = await TripTransactionService.getTransactionById(id);
+            const data = await TripTransactionService.getTransactionById(id as string);
             return successResponse(res, 200, 'Transaction fetched successfully', data);
         } catch (err: any) {
             logger.error(`getTransactionById error: ${err.message}`);
@@ -58,7 +58,7 @@ export const TripTransactionController = {
         try {
             const { id, eventType } = req.params;
             const data = await TripTransactionService.getEventsByType(
-                id,
+                id as string,
                 eventType as TripEventType,
             );
             if (!data) {
@@ -80,7 +80,7 @@ export const TripTransactionController = {
 
             const data = await TripTransactionService.getActivityByActor(
                 actorType as ActorType,
-                actorId,
+                actorId as string,
                 { limit, offset },
             );
             if (!data) {

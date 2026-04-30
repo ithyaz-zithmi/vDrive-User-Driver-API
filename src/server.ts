@@ -1,3 +1,4 @@
+process.env.TZ = 'UTC';
 import config from './config';
 import app from './app';
 import { logger } from './shared/logger';

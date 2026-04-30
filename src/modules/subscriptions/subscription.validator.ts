@@ -4,6 +4,8 @@ export const createOrderValidator = celebrate({
     [Segments.BODY]: Joi.object().keys({
         plan_id: Joi.number().required(),
         billing_cycle: Joi.string().valid('day', 'week', 'month').required(),
+        promo_code: Joi.string().optional(),
+        use_reward_balance: Joi.boolean().optional(),
     }),
 });
 

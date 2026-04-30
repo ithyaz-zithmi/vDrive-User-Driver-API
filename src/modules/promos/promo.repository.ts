@@ -32,6 +32,18 @@ export const PromoRepository = {
     return result.rows || [];
   },
 
+  async findReferralRewardsForDriver(driverId: string, client?: any): Promise<Promo[]> {
+    const q = client ? client.query.bind(client) : query;
+    const result = await q(
+      `SELECT * FROM promos 
+       WHERE promo_type = 'REFERRAL_REWARD'
+       AND target_driver_id = $1
+       ORDER BY created_at DESC`,
+      [driverId]
+    );
+    return result.rows || [];
+  },
+
   async findAll(client?: any): Promise<Promo[]> {
     const q = client ? client.query.bind(client) : query;
     const result = await q('SELECT * FROM promos ORDER BY created_at DESC');
@@ -46,11 +58,11 @@ export const PromoRepository = {
 
   async create(promoData: Partial<Promo>, client?: any): Promise<Promo> {
     const q = client ? client.query.bind(client) : query;
-    const { code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required, max_uses, max_uses_per_driver, start_date, expiry_date, is_active } = promoData;
+    const { code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required, max_uses, max_uses_per_driver, start_date, expiry_date, is_active, promo_type } = promoData;
     const result = await q(
-      `INSERT INTO promos (code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required, max_uses, max_uses_per_driver, start_date, expiry_date, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required || 0, max_uses, max_uses_per_driver || 1, start_date, expiry_date, is_active ?? true]
+      `INSERT INTO promos (code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required, max_uses, max_uses_per_driver, start_date, expiry_date, is_active, promo_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, NOW()), $11, $12, $13) RETURNING *`,
+      [code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required || 0, max_uses, max_uses_per_driver || 1, start_date, expiry_date, is_active ?? true, promo_type || 'OFFER']
     );
     return result.rows[0];
   },

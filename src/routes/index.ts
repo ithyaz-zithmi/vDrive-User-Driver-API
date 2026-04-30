@@ -20,6 +20,7 @@ import notificationRoutes from '../modules/notifications/notification.routes';
 import sosRoutes from '../modules/sos/sos.routes';
 import referralRoutes from '../modules/referrals/referral.routes';
 import couponRoutes from '../modules/coupon-management/coupon.routes';
+import driverReferralRoutes from '../modules/driver-referrals/driver-referral.routes';
 import { logger } from '../shared/logger';
 
 const router = Router();
@@ -32,6 +33,7 @@ router.get('/health-check', (req, res) => {
 // ✅ PUBLIC ROUTES
 router.use('/auth', authRoutes);
 router.use('/referrals', referralRoutes);
+router.use('/drivers/referral', driverReferralRoutes);
 router.use(isAuthenticatedOrService);
 router.use('/invoices', emailRoutes);
 router.use('/subscriptions', subscriptionRoutes);

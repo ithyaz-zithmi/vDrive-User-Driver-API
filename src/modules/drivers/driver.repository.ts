@@ -1,30 +1,34 @@
-// src/modules/drivers/driver.repository.ts
-import { query } from '../../shared/database';
+import { getClient, query } from '../../shared/database';
 import { logger } from '../../shared/logger';
 import { Driver, CreateDriverInput, UpdateDriverInput, Document, KYC, Credit, Availability, Performance, Payments } from './driver.model';
+import { DriverReferralRepository } from '../driver-referrals/driver-referral.repository';
 
 export const DriverRepository = {
   async findDriverById(id: string): Promise<Driver | null> {
-    const result = await query(
-      'SELECT * FROM drivers WHERE id = $1',
-      [id]
-    );
-    return result.rows[0] || null;
+    return this.findById(id);
   },
 
   async create(driverData: CreateDriverInput): Promise<Driver> {
-    const { getClient } = require('../../shared/database');
     const client = await getClient();
 
     try {
       await client.query('BEGIN');
 
+      // Generate unique referral code for the new driver
+      const referralCode = await DriverReferralRepository.generateUniqueReferralCode(driverData.first_name, 'DRIVER');
+
+      // Handle referred_by if provided (it comes as a code from the frontend)
+      let referrerId = null;
+      if (driverData.referred_by) {
+        referrerId = await DriverReferralRepository.findByCode(driverData.referred_by, 'DRIVER');
+      }
+
       // Insert driver
       const driverResult = await client.query(
         `INSERT INTO drivers (
           first_name, last_name, phone_number, email, profile_pic_url, date_of_birth, gender, 
-          address, role, status, kyc, onboarding_status, documents_submitted, credit, performance, payments, is_trip_verified, language, device_id, is_vibration_enabled, total_earnings
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          address, role, status, kyc, onboarding_status, documents_submitted, credit, performance, payments, is_trip_verified, language, device_id, is_vibration_enabled, total_earnings, referral_code, referred_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING *`,
         [
           driverData.first_name,
@@ -56,11 +60,23 @@ export const DriverRepository = {
           driverData.device_id || null,
           driverData.is_vibration_enabled ?? true,
           driverData.total_earnings || 0,
+          referralCode,
+          referrerId
         ]
       );
 
       const driver = driverResult.rows[0];
       const driverId = driver.id;
+
+      // If referred, create entry in referrals table
+      if (referrerId) {
+        await DriverReferralRepository.createReferral({
+          referrer_id: referrerId,
+          referee_id: driverId,
+          referral_type: 'DRIVER',
+          status: 'PENDING'
+        });
+      }
 
       // Insert documents if provided
       const documents = [];
@@ -101,9 +117,11 @@ export const DriverRepository = {
 
 
   async update(id: string, driverData: UpdateDriverInput): Promise<Driver | null> {
-    const client = await query('BEGIN');
+    const client = await getClient();
 
     try {
+      await client.query('BEGIN');
+
       // Update driver fields
       const driverFields: string[] = [];
       const driverValues: any[] = [];
@@ -185,6 +203,14 @@ export const DriverRepository = {
         driverFields.push(`total_trips = $${paramCount++}`);
         driverValues.push(driverData.total_trips);
       }
+      if (driverData.referral_code) {
+        driverFields.push(`referral_code = $${paramCount++}`);
+        driverValues.push(driverData.referral_code);
+      }
+      if (driverData.referred_by) {
+        driverFields.push(`referred_by = $${paramCount++}`);
+        driverValues.push(driverData.referred_by);
+      }
 
       // JSONB updates using merge operator ||
       // 🛡️ Use COALESCE to prevent NULL results when merging
@@ -221,7 +247,7 @@ export const DriverRepository = {
 
       if (driverFields.length > 0) {
         driverValues.push(id);
-        await query(
+        await client.query(
           `UPDATE drivers SET ${driverFields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount}`,
           driverValues
         );
@@ -241,7 +267,7 @@ export const DriverRepository = {
           }
           // 2. If no valid UUID, try to find existing document by type
           else if (doc.documentType) {
-            const existingDocResult = await query(
+            const existingDocResult = await client.query(
               'SELECT id FROM driver_documents WHERE driver_id = $1 AND document_type = $2',
               [id, doc.documentType]
             );
@@ -287,14 +313,14 @@ export const DriverRepository = {
             if (docFields.length > 0) {
               docValues.push(docIdToUpdate);
               docValues.push(id); // Ensure document belongs to driver
-              await query(
+              await client.query(
                 `UPDATE driver_documents SET ${docFields.join(', ')} WHERE id = $${dParamCount} AND driver_id = $${dParamCount + 1}`,
                 docValues
               );
             }
           } else {
             // Create new document
-            await query(
+            await client.query(
               `INSERT INTO driver_documents (
                 driver_id, document_type, document_number, document_url, 
                 status, license_status, expiry_date
@@ -313,11 +339,13 @@ export const DriverRepository = {
         }
       }
 
-      await query('COMMIT');
+      await client.query('COMMIT');
       return this.findById(id);
     } catch (error) {
-      await query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      client.release();
     }
   },
 
@@ -433,7 +461,7 @@ export const DriverRepository = {
     const lName = driver.last_name || driver.full_name?.split(' ').slice(1).join(' ') || '';
 
     const safeParse = (data: any) => {
-      if (!data) return null;
+      if (!data) return undefined;
       if (typeof data === 'object') return data;
       try {
         return JSON.parse(data);
@@ -449,7 +477,7 @@ export const DriverRepository = {
       full_name: driver.full_name,
       phone_number: driver.phone_number,
       email: driver.email,
-      profilePicUrl: driver.profile_pic_url || '',
+      profilePicUrl: driver.profile_pic_url || undefined,
       date_of_birth: driver.date_of_birth,
       gender: driver.gender,
       address: safeParse(driver.address),
@@ -463,26 +491,6 @@ export const DriverRepository = {
       onboarding_status: driver.onboarding_status,
       documents_submitted: driver.documents_submitted,
       credit: safeParse(driver.credit),
-      performance: safeParse(driver.performance),
-      payments: safeParse(driver.payments),
-      is_trip_verified: driver.is_trip_verified,
-      language: driver.language || 'en',
-      is_vibration_enabled: driver.is_vibration_enabled ?? true,
-      fcm_token: driver.fcm_token || null,
-      vdrive_id: driver.vdrive_id,
-      current_lat: driver.current_lat,
-      current_lng: driver.current_lng,
-      current_heading: driver.current_heading,
-      created_at: driver.created_at,
-      updated_at: driver.updated_at,
-      documents: documents.map((doc) => ({
-        documentId: doc.id,
-        documentType: doc.document_type,
-        documentNumber: doc.document_number,
-        documentUrl: safeParse(doc.document_url),
-        licenseStatus: doc.status || '',
-        expiryDate: doc.expiry_date,
-      })),
       recharges: recharges.map((r) => ({
         transactionId: r.id,
         amount: parseFloat(r.amount),
@@ -513,20 +521,33 @@ export const DriverRepository = {
         expiry_date: activeSubscription.expiry_date,
         status: activeSubscription.status,
       } : undefined,
+      created_at: driver.created_at,
+      updated_at: driver.updated_at,
+      performance: safeParse(driver.performance),
+      payments: safeParse(driver.payments),
+      is_trip_verified: driver.is_trip_verified,
+      language: driver.language || 'en',
+      is_vibration_enabled: driver.is_vibration_enabled,
+      fcm_token: driver.fcm_token || undefined,
+      referral_code: driver.referral_code || undefined,
+      referred_by: driver.referred_by || undefined,
+      vdrive_id: driver.vdrive_id,
+      current_lat: driver.current_lat,
+      current_lng: driver.current_lng,
+      current_heading: driver.current_heading,
+      documents: documents.map((doc) => ({
+        documentId: doc.id,
+        documentType: doc.document_type,
+        documentNumber: doc.document_number,
+        documentUrl: safeParse(doc.document_url),
+        licenseStatus: doc.status || '',
+        expiryDate: doc.expiry_date,
+      })),
     };
   },
 
-
-
-
-
   async getDriverbyID(id: string): Promise<Driver | null> {
-    const driverResult = await query('SELECT * FROM drivers WHERE id = $1', [id]);
-    if (driverResult.rows.length === 0) return null;
-
-    const driver = driverResult.rows[0];
-    return driver;
-
+    return this.findById(id);
   },
 
   async findNearbyDriversExpanding(lng: number, lat: number) {
@@ -625,5 +646,100 @@ export const DriverRepository = {
       WHERE id = $2
     `;
     await query(sql, [earnings, driverId]);
+  },
+
+  /**
+   * Atomically add credit balance to a driver's wallet/JSONB field
+   * and record the transaction in driver_credit_usage.
+   */
+  async addCredit(driverId: string, amount: number, type: string, description: string, externalClient?: any): Promise<void> {
+    const client = externalClient || await getClient();
+    const shouldRelease = !externalClient;
+    const shouldTransact = !externalClient;
+
+    try {
+      if (shouldTransact) await client.query('BEGIN');
+
+      // 1. Update the JSONB credit field atomically
+      const updateSql = `
+        UPDATE drivers 
+        SET credit = jsonb_set(
+          jsonb_set(
+            COALESCE(credit, '{"limit": 0, "balance": 0, "totalRecharged": 0, "totalUsed": 0, "lastRechargeAt": null}'::jsonb), 
+            '{balance}', 
+            (COALESCE((credit->>'balance')::numeric, 0) + $1)::text::jsonb
+          ),
+          '{totalRecharged}', 
+          (COALESCE((credit->>'totalRecharged')::numeric, 0) + $1)::text::jsonb
+        ),
+        updated_at = NOW() 
+        WHERE id = $2
+      `;
+      await client.query(updateSql, [amount, driverId]);
+
+      // 2. Record the transaction in credit usage table
+      const usageSql = `
+        INSERT INTO driver_credit_usage (driver_id, amount, type, description, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+      `;
+      await client.query(usageSql, [driverId, amount, type, description]);
+
+      if (shouldTransact) await client.query('COMMIT');
+    } catch (error) {
+      if (shouldTransact) await client.query('ROLLBACK');
+      logger.error(`Error adding credit to driver ${driverId}:`, error);
+      throw error;
+    } finally {
+      if (shouldRelease) client.release();
+    }
+  },
+
+  /**
+   * Atomically deduct credit balance from a driver's wallet.
+   */
+  async deductCredit(driverId: string, amount: number, type: string, description: string, externalClient?: any): Promise<void> {
+    const client = externalClient || await getClient();
+    const shouldRelease = !externalClient;
+    const shouldTransact = !externalClient;
+
+    try {
+      if (shouldTransact) await client.query('BEGIN');
+
+      // 1. Update the JSONB credit field atomically
+      const updateSql = `
+        UPDATE drivers 
+        SET credit = jsonb_set(
+          jsonb_set(
+            COALESCE(credit, '{"limit": 0, "balance": 0, "totalRecharged": 0, "totalUsed": 0, "lastRechargeAt": null}'::jsonb), 
+            '{balance}', 
+            (COALESCE((credit->>'balance')::numeric, 0) - $1)::text::jsonb
+          ),
+          '{totalUsed}', 
+          (COALESCE((credit->>'totalUsed')::numeric, 0) + $1)::text::jsonb
+        ),
+        updated_at = NOW() 
+        WHERE id = $2 AND (credit->>'balance')::numeric >= $1
+      `;
+      const result = await client.query(updateSql, [amount, driverId]);
+
+      if (result.rowCount === 0) {
+        throw new Error('Insufficient credit balance');
+      }
+
+      // 2. Record the transaction in credit usage table
+      const usageSql = `
+        INSERT INTO driver_credit_usage (driver_id, amount, type, description, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+      `;
+      await client.query(usageSql, [driverId, -amount, type, description]);
+
+      if (shouldTransact) await client.query('COMMIT');
+    } catch (error) {
+      if (shouldTransact) await client.query('ROLLBACK');
+      logger.error(`Error deducting credit from driver ${driverId}:`, error);
+      throw error;
+    } finally {
+      if (shouldRelease) client.release();
+    }
   }
 };

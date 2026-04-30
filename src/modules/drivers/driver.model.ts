@@ -150,6 +150,8 @@ export interface Driver {
   current_lng?: number;
   location?: string;
   current_heading?: number;
+  referral_code?: string;
+  referred_by?: string;
 }
 
 export interface CreateDriverInput {
@@ -189,6 +191,8 @@ export interface CreateDriverInput {
   language?: string;
   is_vibration_enabled?: boolean;
   fcm_token?: string;
+  referral_code?: string;
+  referred_by?: string;
 }
 
 export interface UpdateDriverInput extends Partial<
@@ -221,4 +225,6 @@ export interface UpdateDriverInput extends Partial<
   rating?: number;
   total_earnings?: number;
   total_trips?: number;
+  referral_code?: string;
+  referred_by?: string;
 }
