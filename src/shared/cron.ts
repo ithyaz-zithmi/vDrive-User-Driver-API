@@ -4,6 +4,7 @@ import { TripSchedulerService } from '../modules/trip/trip-scheduler.service';
 import { logger } from './logger';
 import { CouponService } from '../modules/coupon-management/coupon.service';
 import { PromoService } from '../modules/promos/promo.service';
+import { NotificationService } from '../modules/notification-management/notification-management.service';
 
 export const initCronJobs = () => {
   // Daily at midnight
@@ -56,6 +57,16 @@ export const initCronJobs = () => {
       await PromoService.processPendingNotifications();
     } catch (error) {
       logger.error('Error in Email Campaign Processor job:', error);
+    }
+  });
+
+  // Background Notification Processor: Every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    logger.debug('Checking for processing notification...');
+    try {
+      await NotificationService.processQueue();
+    } catch (error) {
+      logger.error('Error in Notification job:', error);
     }
   });
 
