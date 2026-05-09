@@ -8,6 +8,7 @@ import { cleanUndefined, formFullName, generateOTP } from '../../utilities/helpe
 import { UserRepository } from './user.repository';
 import { notifyAdmin } from '../../sockets/admin-socket.service';
 import { EmailService } from '../email/email.service';
+import { s3Service } from '../s3/s3.service';
 
 export const UserController = {
   async getUsers(req: Request, res: Response, next: NextFunction) {
@@ -238,5 +239,21 @@ export const UserController = {
     } catch (error) {
       res.status(500).json({ status: 'error', message: 'Database update failed' });
     }
-  }
+  },
+
+   async getUploadUrl(req: Request, res: Response, next: NextFunction) {
+      try {
+        const { userid } = req.params;
+        const { documentType, contentType } = req.body;
+        
+        const key = `user-profiles/${userid}/${documentType}_${Date.now()}`;
+        const result = await s3Service.getUploadUrl(key, contentType);
+        
+        return successResponse(res, 200, 'Upload URL generated successfully', result);
+      } catch (error) {
+        next(error);
+      }
+    }
+
+
 };

@@ -44,8 +44,13 @@ export const PromoNotificationRepository = {
       sql += ` AND total_trips < $1`;
       params.push(threshold);
     } else if (targetType === 'SPECIFIC' && specificDriverId) {
-      sql += ` AND id = $1`;
-      params.push(specificDriverId);
+      if (Array.isArray(specificDriverId)) {
+        sql += ` AND id = ANY($1)`;
+        params.push(specificDriverId);
+      } else {
+        sql += ` AND id = $1`;
+        params.push(specificDriverId);
+      }
     }
 
     sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
@@ -72,7 +77,7 @@ export const PromoNotificationRepository = {
    */
   async logNotification(promoId: string | number, driverId: string, status: 'SENT' | 'FAILED', error?: string) {
     await query(
-      `INSERT INTO driver_notification_logs (promo_id, driver_id, status, error_message) 
+      `INSERT INTO driver_email_logs (promo_id, driver_id, status, error_message) 
        VALUES ($1, $2, $3, $4)`,
       [promoId, driverId, status, error || null]
     );
@@ -99,7 +104,7 @@ export const PromoNotificationRepository = {
    */
   async hasReceivedNotification(promoId: string | number, driverId: string) {
     const res = await query(
-      `SELECT id FROM driver_notification_logs WHERE promo_id = $1 AND driver_id = $2 AND status = 'SENT'`,
+      `SELECT id FROM driver_email_logs WHERE promo_id = $1 AND driver_id = $2 AND status = 'SENT'`,
       [promoId, driverId]
     );
     return res.rows.length > 0;

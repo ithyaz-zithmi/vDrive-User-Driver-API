@@ -17,6 +17,7 @@ import tripVerificationRoutes from '../modules/drivers/trip-verification.routes'
 import adminRoutes from '../modules/admin/admin.routes';
 import promoRoutes from '../modules/promos/promo.routes';
 import notificationRoutes from '../modules/notifications/notification.routes';
+import notificationManagementRoutes from '../modules/notification-management/notification-management.routes';
 import sosRoutes from '../modules/sos/sos.routes';
 import referralRoutes from '../modules/referrals/referral.routes';
 import couponRoutes from '../modules/coupon-management/coupon.routes';
@@ -65,6 +66,7 @@ router.use('/subscriptions', subscriptionRoutes);
 router.use('/admin', adminRoutes);
 router.use('/promos', promoRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/notification-management', notificationManagementRoutes);
 router.use('/sos', sosRoutes);
 
 router.use(isAuthenticated);

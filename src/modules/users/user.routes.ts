@@ -58,8 +58,8 @@ router.patch(
 
 router.get('/search', validateQuery(UserValidation.searchValidation), UserController.searchUsers);
 
-// Driver documents routes
-router.use('/documents', driverDocumentsRoutes);
+// user documents routes
+router.post('/documents/:userid/upload-url', UserController.getUploadUrl);
 
 //fcm-token-update
 router.post('/update-fcm-token', UserController.updateToken)

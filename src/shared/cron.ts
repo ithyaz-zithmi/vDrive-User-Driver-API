@@ -5,6 +5,7 @@ import { acquireLock, releaseLock } from './redis';
 import { logger } from './logger';
 import { CouponService } from '../modules/coupon-management/coupon.service';
 import { PromoService } from '../modules/promos/promo.service';
+import { NotificationService } from '../modules/notification-management/notification-management.service';
 
 export const initCronJobs = () => {
   // Daily at midnight
@@ -82,6 +83,17 @@ export const initCronJobs = () => {
     }
   });
 
+  // Background Notification Processor: Every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    logger.debug('Checking for processing notification...');
+    try {
+      await NotificationService.processQueue();
+    } catch (error) {
+      logger.error('Error in Notification job:', error);
+    }
+  });
+
+  console.log('✅ Cron jobs initialized');
   // Sync Redis Driver Locations to Postgres: Every 5 minutes
   cron.schedule('*/5 * * * *', async () => {
     const lockKey = 'driver_location_sync_job';
