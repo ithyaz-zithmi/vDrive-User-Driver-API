@@ -44,8 +44,13 @@ export const CouponNotificationRepository = {
       sql += ` AND total_trips < $1`;
       params.push(threshold);
     } else if (targetType === 'SPECIFIC' && specificUserId) {
-      sql += ` AND id = $1`;
-      params.push(specificUserId);
+      if (Array.isArray(specificUserId)) {
+        sql += ` AND id = ANY($1)`;
+        params.push(specificUserId);
+      } else {
+        sql += ` AND id = $1`;
+        params.push(specificUserId);
+      }
     }
 
     sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
@@ -72,7 +77,7 @@ export const CouponNotificationRepository = {
    */
   async logNotification(couponId: string, userId: string, status: 'SENT' | 'FAILED', error?: string) {
     await query(
-      `INSERT INTO user_notification_logs (coupon_id, user_id, status, error_message) 
+      `INSERT INTO user_email_logs (coupon_id, user_id, status, error_message) 
        VALUES ($1, $2, $3, $4)`,
       [couponId, userId, status, error || null]
     );
@@ -99,7 +104,7 @@ export const CouponNotificationRepository = {
    */
   async hasReceivedNotification(couponId: string, userId: string) {
     const res = await query(
-      `SELECT id FROM user_notification_logs WHERE coupon_id = $1 AND user_id = $2 AND status = 'SENT'`,
+      `SELECT id FROM user_email_logs WHERE coupon_id = $1 AND user_id = $2 AND status = 'SENT'`,
       [couponId, userId]
     );
     return res.rows.length > 0;
