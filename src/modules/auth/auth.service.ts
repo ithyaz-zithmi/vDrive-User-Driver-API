@@ -157,7 +157,6 @@ export const AuthService = {
         if (currentRequestCount > otpRequestLimit) {
           const blockUntil = new Date(now.getTime() + otpBlockDuration * 60 * 1000);
           await AuthRepository.blockUser(phone_number, role, blockUntil);
-
           // Notify user about being blocked
           const targetFcmToken = fcm_token || (await AuthRepository.getUser(phone_number, role))?.fcm_token;
           if (targetFcmToken) {
@@ -310,7 +309,6 @@ export const AuthService = {
               await UserNotifications.tooManyAttempts(targetFcmToken, otpBlockDuration);
             }
           }
-
           throw {
             statusCode: 429,
             message: `Too many failed attempts. Account locked for ${otpBlockDuration} minutes.`,

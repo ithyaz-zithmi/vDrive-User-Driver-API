@@ -60,7 +60,6 @@ export class SosRepository {
       'SELECT COUNT(*) FROM trusted_contacts WHERE user_id = $1 AND user_type = $2',
       [user_id, user_type]
     );
-
     if (parseInt(existingContactsCount.rows[0].count) >= 5) {
       throw new Error('Maximum number of trusted contacts reached');
     }
